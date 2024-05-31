@@ -1,4 +1,4 @@
-namespace EcAuthDbContext
+namespace EcAuth
 
 open System.ComponentModel.DataAnnotations
 open Microsoft.EntityFrameworkCore
@@ -16,7 +16,7 @@ type EcAuthDbContext() =
         and set(value) = this._clients <- value
 
     override _.OnConfiguring(optionsBuilder: DbContextOptionsBuilder) =
-        optionsBuilder.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=EcAuthDb;Trusted_Connection=True;MultipleActiveResultSets=true") |> ignore
+        optionsBuilder.UseSqlServer("Server=127.0.0.1;Database=EcAuthDb;User Id=SA;Password=<YourStrong@Passw0rd>;TrustServerCertificate=true;MultipleActiveResultSets=true") |> ignore
 
     override _.OnModelCreating(modelBuilder: ModelBuilder) =
         modelBuilder.RegisterOptionTypes() |> ignore

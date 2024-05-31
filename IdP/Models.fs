@@ -12,9 +12,13 @@ type Client = {
   [<Required; StringLength(255)>]
   ClientId: string
   [<Required; StringLength(1024)>]
+
   ClientSecret: string
   [<Required; StringLength(255)>]
   AppName: string
   CreatedAt: DateTime
   UpdatedAt: DateTime
 }
+
+let createClient clientId clientSecret appName =
+    { Id = 0; ClientId = clientId; ClientSecret = clientSecret; AppName = appName; CreatedAt = DateTime.UtcNow; UpdatedAt = DateTime.UtcNow }
