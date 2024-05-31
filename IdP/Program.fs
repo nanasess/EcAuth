@@ -1,5 +1,7 @@
 namespace IdP
+
 #nowarn "20"
+
 open System
 open System.Collections.Generic
 open System.IO
@@ -13,6 +15,7 @@ open Microsoft.Extensions.Configuration
 open Microsoft.Extensions.DependencyInjection
 open Microsoft.Extensions.Hosting
 open Microsoft.Extensions.Logging
+open Microsoft.EntityFrameworkCore
 
 module Program =
     let exitCode = 0
@@ -24,7 +27,17 @@ module Program =
 
         builder.Services.AddControllers()
 
+        builder.Services.AddDbContext<EcAuth.EcAuthDbContext>(fun options ->
+        options.UseSqlServer(
+            "Server=db;Database=EcAuthDb;User Id=SA;Password=<YourStrong@Passw0rd>Trusted_Connection=True;MultipleActiveResultSets=true",
+             fun b -> b.MigrationsAssembly("EcAuthMigration") |> ignore
+        )
+        |> ignore)
+
         let app = builder.Build()
+
+        if app.Environment.IsDevelopment() then
+            app.UseDeveloperExceptionPage() |> ignore
 
         app.UseHttpsRedirection()
 
