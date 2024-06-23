@@ -20,5 +20,16 @@ type Client = {
   UpdatedAt: DateTime
 }
 
+[<CLIMutable>]
+type RsaKeyPair = {
+  [<Key; DatabaseGenerated(DatabaseGeneratedOption.Identity)>]
+  Id: int
+  ClientId: int
+  PublicKey: string
+  PrivateKey: string
+  CreatedAt: DateTime
+  UpdatedAt: DateTime
+}
+
 let createClient clientId clientSecret appName =
     { Id = 0; ClientId = clientId; ClientSecret = clientSecret; AppName = appName; CreatedAt = DateTime.UtcNow; UpdatedAt = DateTime.UtcNow }

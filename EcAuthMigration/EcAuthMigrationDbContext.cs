@@ -11,6 +11,7 @@ namespace EcAuthMigration
         }
 
         public DbSet<Client> Clients { get; set; }
+        public DbSet<RsaKeyPair> RsaKeyPairs { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
@@ -20,6 +21,9 @@ namespace EcAuthMigration
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Client>();
+            modelBuilder.Entity<RsaKeyPair>(b => {
+                b.HasOne<Client>().WithMany().HasForeignKey("ClientId");
+            });
         }
     }
 }
