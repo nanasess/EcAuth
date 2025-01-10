@@ -1,12 +1,12 @@
 services:
-  identityprovider:
-    image: ${DOCKER_REGISTRY-}identityprovider
+  web:
     build:
       context: .
-      dockerfile: IdentityProvider/Dockerfile
-    depends_on:
-      - db
-    command: ["dotnet", "ef", "database", "update"]
+      dockerfile: Dockerfile
+      # target: build-env
+    image: identity-server
+    ports:
+      - 8080:8080
   db:
     environment:
       ACCEPT_EULA: "Y"
@@ -21,7 +21,3 @@ services:
       retries: 10
       start_period: 10s
       timeout: 3s
-    # volumes:
-
-    #     - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-    # command: /bin/bash -c "/opt/mssql/bin/sqlservr & sleep 30s & /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P '<YourStrong@Passw0rd>' -d master -i /docker-entrypoint-initdb.d/init.sql"
