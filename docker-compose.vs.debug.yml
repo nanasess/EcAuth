@@ -1,0 +1,3 @@
+services:
+  identityprovider:
+    entrypoint: sh -c '/app/efbundle --connection "Server=db;Database=EcAuthDb;User Id=SA;Password=<YourStrong@Passw0rd>;TrustServerCertificate=true;MultipleActiveResultSets=true" && dotnet --roll-forward Major /VSTools/DistrolessHelper/DistrolessHelper.dll --wait'
