@@ -1,3 +1,7 @@
+volumes:
+  sql1data:
+    driver: local
+
 services:
   identityprovider:
     image: ${DOCKER_REGISTRY-}identityprovider
@@ -13,6 +17,8 @@ services:
       ACCEPT_EULA: "Y"
       MSSQL_SA_PASSWORD: ${DB_PASSWORD}
     image: mcr.microsoft.com/mssql/server:2022-latest
+    volumes:
+      - sql1data:/var/opt/mssql
     ports:
       - 1433:1433
     restart: always
