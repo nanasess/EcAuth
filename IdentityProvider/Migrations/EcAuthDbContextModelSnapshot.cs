@@ -122,6 +122,53 @@ namespace IdentityProvider.Migrations
 
                     b.ToTable("organization");
                 });
+
+            modelBuilder.Entity("IdentityProvider.Models.RsaKeyPair", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ClientId")
+                        .HasColumnType("int")
+                        .HasColumnName("client_id");
+
+                    b.Property<string>("PrivateKey")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("private_key");
+
+                    b.Property<string>("PublicKey")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("public_key");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClientId")
+                        .IsUnique();
+
+                    b.ToTable("rsa_key_pair");
+                });
+
+            modelBuilder.Entity("IdentityProvider.Models.RsaKeyPair", b =>
+                {
+                    b.HasOne("IdentityProvider.Models.Client", "Client")
+                        .WithOne("RsaKeyPair")
+                        .HasForeignKey("IdentityProvider.Models.RsaKeyPair", "ClientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Client");
+                });
+
+            modelBuilder.Entity("IdentityProvider.Models.Client", b =>
+                {
+                    b.Navigation("RsaKeyPair");
+                });
 #pragma warning restore 612, 618
         }
     }
