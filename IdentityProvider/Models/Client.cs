@@ -20,5 +20,6 @@ namespace IdentityProvider.Models
         public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
         [Column("updated_at")]
         public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+        public RsaKeyPair? RsaKeyPair { get; set; }
     }
 }
