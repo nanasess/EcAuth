@@ -3,21 +3,22 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace IdentityProvider.Models
 {
-    [Table("organization")]
-    public class Organization
+    [Table("open_id_provider_scope")]
+    public class OpenIdProviderScope
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        [Column("id")]
         public int Id { get; set; }
-        [Column("code")]
-        public string Code { get; set; }
-        [Column("name")]
-        public string Name { get; set; }
+        [Column("open_id_provider_id")]
+        public int OpenIdProviderId { get; set; }
+        public OpenIdProvider OpenIdProvider { get; set; }
+        [Column("scope")]
+        public string Scope { get; set; }
+        [Column("is_enabled")]
+        public bool IsEnabled { get; set; }
         [Column("created_at")]
         public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.Now;
         [Column("updated_at")]
         public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.Now;
-        public ICollection<Client> Clients { get; } = new List<Client>();
     }
 }

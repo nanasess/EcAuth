@@ -20,6 +20,10 @@ namespace IdentityProvider.Models
         public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
         [Column("updated_at")]
         public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+        [Column("organization_id")]
+        public int? OrganizationId { get; set; }
+        public Organization? Organization { get; set; }
         public RsaKeyPair? RsaKeyPair { get; set; }
+        public ICollection<RedirectUri>? RedirectUris { get; } = new List<RedirectUri>();
     }
 }
