@@ -4,6 +4,7 @@ using IdentityProvider;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace IdentityProvider.Migrations
 {
     [DbContext(typeof(EcAuthDbContext))]
-    partial class EcAuthDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250118150538_InsertOrganization")]
+    partial class InsertOrganization
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -97,102 +100,6 @@ namespace IdentityProvider.Migrations
                     b.ToTable("client");
                 });
 
-            modelBuilder.Entity("IdentityProvider.Models.OpenIdProvider", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("AuthorizationEndpoint")
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("authorization_endpoint");
-
-                    b.Property<string>("ClientId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("client_id");
-
-                    b.Property<string>("ClientSecret")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("client_secret");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("DiscoveryDocumentUri")
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("discovery_document_uri");
-
-                    b.Property<string>("Issuer")
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("issuer");
-
-                    b.Property<string>("JwksUri")
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("jwks_uri");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("name");
-
-                    b.Property<string>("TokenEndpoint")
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("token_endpoint");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("datetimeoffset")
-                        .HasColumnName("updated_at");
-
-                    b.Property<string>("UserinfoEndpoint")
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("userinfo_endpoint");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("open_id_provider");
-                });
-
-            modelBuilder.Entity("IdentityProvider.Models.OpenIdProviderScope", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset")
-                        .HasColumnName("created_at");
-
-                    b.Property<bool>("IsEnabled")
-                        .HasColumnType("bit")
-                        .HasColumnName("is_enabled");
-
-                    b.Property<int>("OpenIdProviderId")
-                        .HasColumnType("int")
-                        .HasColumnName("open_id_provider_id");
-
-                    b.Property<string>("Scope")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("scope");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("datetimeoffset")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OpenIdProviderId");
-
-                    b.ToTable("open_id_provider_scope");
-                });
-
             modelBuilder.Entity("IdentityProvider.Models.Organization", b =>
                 {
                     b.Property<int>("Id")
@@ -223,39 +130,6 @@ namespace IdentityProvider.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("organization");
-                });
-
-            modelBuilder.Entity("IdentityProvider.Models.RedirectUri", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("ClientId")
-                        .HasColumnType("int")
-                        .HasColumnName("client_id");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateTimeOffset>("UpdatedAt")
-                        .HasColumnType("datetimeoffset")
-                        .HasColumnName("updated_at");
-
-                    b.Property<string>("Uri")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("uri");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ClientId");
-
-                    b.ToTable("redirect_uri");
                 });
 
             modelBuilder.Entity("IdentityProvider.Models.RsaKeyPair", b =>
@@ -298,28 +172,6 @@ namespace IdentityProvider.Migrations
                     b.Navigation("Organization");
                 });
 
-            modelBuilder.Entity("IdentityProvider.Models.OpenIdProviderScope", b =>
-                {
-                    b.HasOne("IdentityProvider.Models.OpenIdProvider", "OpenIdProvider")
-                        .WithMany("Scopes")
-                        .HasForeignKey("OpenIdProviderId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("OpenIdProvider");
-                });
-
-            modelBuilder.Entity("IdentityProvider.Models.RedirectUri", b =>
-                {
-                    b.HasOne("IdentityProvider.Models.Client", "Client")
-                        .WithMany("RedirectUris")
-                        .HasForeignKey("ClientId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Client");
-                });
-
             modelBuilder.Entity("IdentityProvider.Models.RsaKeyPair", b =>
                 {
                     b.HasOne("IdentityProvider.Models.Client", "Client")
@@ -333,14 +185,7 @@ namespace IdentityProvider.Migrations
 
             modelBuilder.Entity("IdentityProvider.Models.Client", b =>
                 {
-                    b.Navigation("RedirectUris");
-
                     b.Navigation("RsaKeyPair");
-                });
-
-            modelBuilder.Entity("IdentityProvider.Models.OpenIdProvider", b =>
-                {
-                    b.Navigation("Scopes");
                 });
 
             modelBuilder.Entity("IdentityProvider.Models.Organization", b =>
