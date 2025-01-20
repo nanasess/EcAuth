@@ -11,10 +11,10 @@ namespace IdentityProvider.Models
         public int Id { get; set; }
         [Column("name")]
         public string Name { get; set; }
-        [Column("client_id")]
-        public string ClientId { get; set; }
-        [Column("client_secret")]
-        public string ClientSecret { get; set; }
+        [Column("idp_client_id")]
+        public string IdpClientId { get; set; }
+        [Column("idp_client_secret")]
+        public string IdpClientSecret { get; set; }
         [Column("discovery_document_uri")]
         public string? DiscoveryDocumentUri { get; set; }
         [Column("issuer")]
@@ -31,6 +31,9 @@ namespace IdentityProvider.Models
         public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.Now;
         [Column("updated_at")]
         public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.Now;
+        public Client? Client { get; set; }
+        [Column("client_id")]
+        public int? ClientId { get; set; }
         public ICollection<OpenIdProviderScope> Scopes { get; } = new List<OpenIdProviderScope>();
     }
 }

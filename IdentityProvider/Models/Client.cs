@@ -25,5 +25,6 @@ namespace IdentityProvider.Models
         public Organization? Organization { get; set; }
         public RsaKeyPair? RsaKeyPair { get; set; }
         public ICollection<RedirectUri>? RedirectUris { get; } = new List<RedirectUri>();
+        public ICollection<OpenIdProvider>? OpenIdProviders { get; } = new List<OpenIdProvider>();
     }
 }
