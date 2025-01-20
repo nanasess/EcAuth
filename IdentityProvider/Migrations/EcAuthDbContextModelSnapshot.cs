@@ -109,15 +109,9 @@ namespace IdentityProvider.Migrations
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("authorization_endpoint");
 
-                    b.Property<string>("ClientId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                    b.Property<int?>("ClientId")
+                        .HasColumnType("int")
                         .HasColumnName("client_id");
-
-                    b.Property<string>("ClientSecret")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)")
-                        .HasColumnName("client_secret");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset")
@@ -126,6 +120,16 @@ namespace IdentityProvider.Migrations
                     b.Property<string>("DiscoveryDocumentUri")
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("discovery_document_uri");
+
+                    b.Property<string>("IdpClientId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("idp_client_id");
+
+                    b.Property<string>("IdpClientSecret")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("idp_client_secret");
 
                     b.Property<string>("Issuer")
                         .HasColumnType("nvarchar(max)")
@@ -153,6 +157,8 @@ namespace IdentityProvider.Migrations
                         .HasColumnName("userinfo_endpoint");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ClientId");
 
                     b.ToTable("open_id_provider");
                 });
@@ -298,6 +304,15 @@ namespace IdentityProvider.Migrations
                     b.Navigation("Organization");
                 });
 
+            modelBuilder.Entity("IdentityProvider.Models.OpenIdProvider", b =>
+                {
+                    b.HasOne("IdentityProvider.Models.Client", "Client")
+                        .WithMany("OpenIdProviders")
+                        .HasForeignKey("ClientId");
+
+                    b.Navigation("Client");
+                });
+
             modelBuilder.Entity("IdentityProvider.Models.OpenIdProviderScope", b =>
                 {
                     b.HasOne("IdentityProvider.Models.OpenIdProvider", "OpenIdProvider")
@@ -333,6 +348,8 @@ namespace IdentityProvider.Migrations
 
             modelBuilder.Entity("IdentityProvider.Models.Client", b =>
                 {
+                    b.Navigation("OpenIdProviders");
+
                     b.Navigation("RedirectUris");
 
                     b.Navigation("RsaKeyPair");
