@@ -1,3 +1,3 @@
-services:
-   migration:
-    entrypoint: sh -c '/app/publish/bundle'
+# services:
+   # migration:
+   #  entrypoint: sh -c '/app/publish/bundle'
