@@ -9,6 +9,7 @@ builder.Services.AddDbContext<EcAuthDbContext>(options =>
     options.UseSqlServer(builder.Configuration["ConnectionStrings:EcAuthDbContext"]);
 });
 builder.Services.AddControllers();
+builder.Services.AddMvc();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

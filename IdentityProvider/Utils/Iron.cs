@@ -2,9 +2,10 @@ using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
+using IdentityProvider.Models;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
-using Newtonsoft.Json;
 
 /// <summary>This program is a C# implementation of @hapi/iron.</summary>
 /// <remarks>
@@ -30,12 +31,12 @@ public class Iron
 
     private static readonly string MacPrefix = "Fe26.2";
 
-    public static async Task<string> Seal(object data, string password, Options options)
+    public static async Task<string> Seal(State state, string password, Options options)
     {
         options = options ?? new Options();
         var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + options.LocalTimeOffsetMsec;
 
-        var objectString = JsonConvert.SerializeObject(data);
+        var objectString = JsonSerializer.Serialize<State>(state);
         var key = await GenerateKey(password, options);
         var encrypted = EncryptStringToBytes_Aes(objectString, key.Key, key.Iv);
 
@@ -49,7 +50,7 @@ public class Iron
         return $"{macBaseString}*{mac.Salt}*{mac.Digest}";
     }
 
-    public static async Task<T> Unseal<T>(string sealedData, string password, Options options)
+    public static async Task<State> Unseal<State>(string sealedData, string password, Options options)
     {
         options = options ?? new Options();
         var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + options.LocalTimeOffsetMsec;
@@ -92,7 +93,7 @@ public class Iron
         var key = await GenerateKey(password, decryptOptions);
         var decrypted = DecryptStringFromBytes_Aes(encrypted, key.Key, key.Iv);
 
-        return JsonConvert.DeserializeObject<T>(decrypted);
+        return JsonSerializer.Deserialize<State>(decrypted);
     }
 
     private static async Task<(byte[] Key, byte[] Iv, string Salt)> GenerateKey(string password, Options options)

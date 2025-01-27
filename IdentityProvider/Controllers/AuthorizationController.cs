@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using IdentityProvider;
 using IdentityProvider.Models;
+using System.Web;
 
 namespace IdentityProvider.Controllers
 {
@@ -27,6 +28,7 @@ namespace IdentityProvider.Controllers
         /// 必要なパラメータは以下のとおり
         /// - client.client_id
         /// - open_id_provider.name
+        /// - redirect_uri
         /// パラメータで OpenID Provider を特定し、その IdP の Authorization endpoint にリダイレクトします。
         /// リダイレクト時に以下のパラメータを付与します。
         /// - client_id=<open_id_provider.client_id>
@@ -35,10 +37,33 @@ namespace IdentityProvider.Controllers
         /// - redirect_uri=<clientに登録したredirect_uri>
         /// - state=<state>
         /// </remarks>
-        public async Task<IActionResult> Federate()
+        public async Task<IActionResult> Federate([FromQuery] string client_id, [FromQuery] string provider_name, [FromQuery] string redirect_uri)
         {
-            var Client = await _context.Clients.FirstOrDefaultAsync();
-            return Redirect("/authorization/clients");
+            var Client = await _context.Clients
+                .Where(c => c.ClientId == client_id)
+                .FirstOrDefaultAsync();
+            var OpenIdProvider = await _context.OpenIdProviders
+                .Where(
+                    p => p.Name == provider_name
+                    && p.ClientId == Client.Id
+                ).FirstOrDefaultAsync();
+            await _context.SaveChangesAsync();
+            var data = new State { OpenIdProviderId = OpenIdProvider.Id, RedirectUri = redirect_uri };
+            var password = Environment.GetEnvironmentVariable("STATE_PASSWORD");
+            var options = new Iron.Options();
+
+            var sealedData = await Iron.Seal(data, password, options);
+            Console.WriteLine($"Sealed Data: {sealedData}");
+            var unsealedData = await Iron.Unseal<dynamic>(sealedData, password, options);
+            Console.WriteLine($"Unsealed Data: {unsealedData}");
+            return Redirect(
+                $"{OpenIdProvider.AuthorizationEndpoint}" +
+                $"?client_id={OpenIdProvider.IdpClientId}" +
+                $"&scope={HttpUtility.UrlEncode("openid email profile")}" +
+                $"&response_type=code" +
+                $"&redirect_uri={HttpUtility.UrlEncode("https://localhost:8081/auth/callback")}" +
+                $"&state={HttpUtility.UrlEncode(sealedData)}"
+             );
         }
     }
 }
