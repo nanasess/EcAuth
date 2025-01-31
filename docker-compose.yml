@@ -12,6 +12,7 @@ services:
       - db
     environment:
       ConnectionStrings__EcAuthDbContext: "Server=${DB_HOST};Database=${DB_NAME};User Id=${DB_USER};Password=${DB_PASSWORD};TrustServerCertificate=true;MultipleActiveResultSets=true"
+      STATE_PASSWORD: ${STATE_PASSWORD:-strong_password_string_of_at_least_32_characters}
   db:
     environment:
       ACCEPT_EULA: "Y"
@@ -44,3 +45,10 @@ services:
   #     - db
   #   environment:
   #     ConnectionStrings__EcAuthDbContext: "Server=${DB_HOST};Database=${DB_NAME};User Id=${DB_USER};Password=${DB_PASSWORD};TrustServerCertificate=true;MultipleActiveResultSets=true"
+
+  mockopenidprovider:
+    image: ${DOCKER_REGISTRY-}mockopenidprovider
+    build:
+      context: .
+      dockerfile: MockOpenIdProvider/Dockerfile
+
