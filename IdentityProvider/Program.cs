@@ -1,4 +1,4 @@
-using IdentityProvider;
+using IdentityProvider.Models;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
