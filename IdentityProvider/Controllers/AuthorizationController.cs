@@ -1,12 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
+using IdentityProvider.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using IdentityProvider;
-using IdentityProvider.Models;
 using System.Web;
 
 namespace IdentityProvider.Controllers
@@ -56,10 +50,15 @@ namespace IdentityProvider.Controllers
             Console.WriteLine($"Sealed Data: {sealedData}");
             var unsealedData = await Iron.Unseal<dynamic>(sealedData, password, options);
             Console.WriteLine($"Unsealed Data: {unsealedData}");
+            var scopes = "openid email profile";
+            if (OpenIdProvider.Name == "amazon-oauth2")
+            {
+                scopes = "profile postal_code profile:user_id";
+            }
             return Redirect(
                 $"{OpenIdProvider.AuthorizationEndpoint}" +
                 $"?client_id={OpenIdProvider.IdpClientId}" +
-                $"&scope={HttpUtility.UrlEncode("openid email profile")}" +
+                $"&scope={HttpUtility.UrlEncode(scopes)}" +
                 $"&response_type=code" +
                 $"&redirect_uri={HttpUtility.UrlEncode("https://localhost:8081/auth/callback")}" +
                 $"&state={HttpUtility.UrlEncode(sealedData)}"

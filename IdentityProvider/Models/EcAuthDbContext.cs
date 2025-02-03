@@ -1,8 +1,7 @@
-﻿using System.ComponentModel;
-using IdentityProvider.Models;
+using System.ComponentModel;
 using Microsoft.EntityFrameworkCore;
 
-namespace IdentityProvider
+namespace IdentityProvider.Models
 {
     public class EcAuthDbContext : DbContext
     {

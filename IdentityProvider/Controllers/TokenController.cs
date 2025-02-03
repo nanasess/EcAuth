@@ -1,7 +1,7 @@
-﻿using Microsoft.AspNetCore.Http;
+
+using IdentityProvider.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using IdentityProvider.Models;
 
 namespace IdentityProvider.Controllers
 {
