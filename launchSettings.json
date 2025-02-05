@@ -6,7 +6,7 @@
       "serviceActions": {
         "identityprovider": "StartDebugging",
         "db": "StartWithoutDebugging",
-        "migration": "StartWithoutDebugging"
+        "mockopenidprovider": "StartDebugging"
       }
     }
   }
