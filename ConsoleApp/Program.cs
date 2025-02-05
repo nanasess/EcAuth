@@ -1,5 +1,5 @@
 ﻿using ConsoleAppFramework;
-using IdentityProvider;
+using IdentityProvider.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

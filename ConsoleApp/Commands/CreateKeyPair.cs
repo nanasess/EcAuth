@@ -5,7 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using ConsoleAppFramework;
-using IdentityProvider;
+using IdentityProvider.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace EcAuthConsoleApp.Commands
@@ -13,7 +13,7 @@ namespace EcAuthConsoleApp.Commands
     [RegisterCommands]
     internal class CreateKeyPair(EcAuthDbContext context)
     {
-        public int Create(string Id)
+        public int CreateKey(string Id)
         {
             var client = context.Clients.Where(c => c.ClientId == Id).FirstOrDefault();
             if (client == null)
