@@ -1,19 +1,24 @@
+using IdentityProvider.Filters;
 using IdentityProvider.Models;
+using IdentityProvider.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Web;
 
 namespace IdentityProvider.Controllers
 {
+    [ServiceFilter(typeof(OrganizationFilter))]
     [Route("authorization")]
     [ApiController]
     public class AuthorizationController : ControllerBase
     {
         private readonly EcAuthDbContext _context;
+        private readonly ITenantService _tenantService;
 
-        public AuthorizationController(EcAuthDbContext context)
+        public AuthorizationController(EcAuthDbContext context, ITenantService tenantService)
         {
             _context = context;
+            _tenantService = tenantService;
         }
 
         [HttpGet]
@@ -33,6 +38,7 @@ namespace IdentityProvider.Controllers
         /// </remarks>
         public async Task<IActionResult> Federate([FromQuery] string client_id, [FromQuery] string provider_name, [FromQuery] string redirect_uri)
         {
+            Console.WriteLine(_tenantService.TenantName);
             var Client = await _context.Clients
                 .Where(c => c.ClientId == client_id)
                 .FirstOrDefaultAsync();

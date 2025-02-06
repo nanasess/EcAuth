@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace IdentityProvider.Models
@@ -14,6 +14,8 @@ namespace IdentityProvider.Models
         public string Code { get; set; }
         [Column("name")]
         public string Name { get; set; }
+        [Column("tenant_name")]
+        public string? TenantName { get; set; }
         [Column("created_at")]
         public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.Now;
         [Column("updated_at")]
