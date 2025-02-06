@@ -1,11 +1,17 @@
+using IdentityProvider.Filters;
+using IdentityProvider.Middlewares;
 using IdentityProvider.Models;
+using IdentityProvider.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddScoped<ITenantService, TenantService>();
+builder.Services.AddScoped<OrganizationFilter>();
 // Add services to the container.
-builder.Services.AddDbContext<EcAuthDbContext>(options =>
+builder.Services.AddDbContext<EcAuthDbContext>((sp, options) =>
 {
+    var tenantService = sp.GetRequiredService<ITenantService>();
     options.UseSqlServer(builder.Configuration["ConnectionStrings:EcAuthDbContext"]);
 });
 builder.Services.AddControllers();
@@ -23,6 +29,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseMiddleware<TenantMiddleware>();
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
