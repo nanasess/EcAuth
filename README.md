@@ -5,7 +5,7 @@
 ## DB のバックアップ
 
 ``` shell
-docker compose -f docker-compose.yml -f docker-compose.override.yml -f obj/Docker/docker-compose.vs.debug.g.yml -f docker-compose.vs.debug.yml -p ecauth --ansi never exec db /opt/mssql-tools18/bin/sqlcmd -S localhost -U SA -P '<YourStrong@Passw0rd>' -C -Q "BACKUP DATABASE [EcAuthDb] TO DISK = N'/var/opt/mssql/backup/EcAuthDb.bak' WITH NOFORMAT, NOINIT, NAME = 'EcAuthDbBackup', SKIP, NOREWIND, NOUNLOAD, STATS = 10"
+docker compose -f docker-compose.yml -f docker-compose.override.yml -f obj/Docker/docker-compose.vs.debug.g.yml -f docker-compose.vs.debug.yml -p ec-auth --ansi never exec db /opt/mssql-tools18/bin/sqlcmd -S localhost -U SA -P '<YourStrong@Passw0rd>' -C -Q "BACKUP DATABASE [EcAuthDb] TO DISK = N'/var/opt/mssql/backup/EcAuthDb.bak' WITH NOFORMAT, NOINIT, NAME = 'EcAuthDbBackup', SKIP, NOREWIND, NOUNLOAD, STATS = 10"
 ```
 
 ## DB のリストア
