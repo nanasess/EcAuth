@@ -10,15 +10,18 @@ namespace IdentityProvider.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.Sql("INSERT INTO organization (code, name, created_at, updated_at) VALUES ('example', 'example', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
-            migrationBuilder.Sql("UPDATE client SET organization_id = (SELECT id FROM organization WHERE code = 'example') WHERE client_id = 'client_id'");
+            DotNetEnv.Env.TraversePath().Load();
+            var client_id = DotNetEnv.Env.GetString("DEFAULT_CLIENT_ID");
+            var organization_code = DotNetEnv.Env.GetString("DEFAULT_ORGANIZATION_CODE");
+            migrationBuilder.Sql($"UPDATE client SET organization_id = (SELECT TOP 1 id FROM organization WHERE code = '{organization_code}') WHERE client_id = '{client_id}'");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.Sql("DELETE FROM organization WHERE code = 'example'");
-            migrationBuilder.Sql("UPDATE client SET organization_id = NULL WHERE client_id = 'client_id'");
+            DotNetEnv.Env.TraversePath().Load();
+            var client_id = DotNetEnv.Env.GetString("DEFAULT_CLIENT_ID");
+            migrationBuilder.Sql($"UPDATE client SET organization_id = NULL WHERE client_id = '{client_id}'");
         }
     }
 }
