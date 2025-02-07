@@ -8,6 +8,7 @@ namespace IdentityProvider.Models
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [Column("id")]
         public int Id { get; set; }
         [Column("open_id_provider_id")]
         public int OpenIdProviderId { get; set; }
