@@ -42,6 +42,16 @@ namespace IdentityProvider.Migrations
                 {
                     table.PrimaryKey("PK_organization", x => x.id);
                 });
+
+            DotNetEnv.Env.TraversePath().Load();
+            var organization_code = DotNetEnv.Env.GetString("DEFAULT_ORGANIZATION_CODE");
+            var organization_name = DotNetEnv.Env.GetString("DEFAULT_ORGANIZATION_NAME");
+            migrationBuilder.Sql("SET IDENTITY_INSERT organization ON");
+            migrationBuilder.Sql(@$"
+                INSERT INTO organization (id, code, name, created_at, updated_at)
+                VALUES (1, '{organization_code}', '{organization_name}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ");
+            migrationBuilder.Sql("SET IDENTITY_INSERT organization OFF");
         }
 
         /// <inheritdoc />

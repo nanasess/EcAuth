@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using MockOpenIdProvider.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Web;
 
 namespace MockOpenIdProvider.Controllers
 {
@@ -41,7 +42,7 @@ namespace MockOpenIdProvider.Controllers
             return Redirect(
                 $"{redirect_uri}" +
                 $"?error=invalid_request_uri" +
-                $"&error_description=invalid_request_uri"
+                $"&error_description={HttpUtility.UrlEncode("The request_uri in the Authorization Request returns an error or contains invalid data.")}"
             );
         }
     }
