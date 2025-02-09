@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using IdpUtilities;
+using Microsoft.AspNetCore.Mvc;
 
 namespace MockOpenIdProvider.Controllers
 {
@@ -9,7 +10,8 @@ namespace MockOpenIdProvider.Controllers
         /// <summary>Token リクエストを受信し、アクセストークンを返します。</summary>
         public IActionResult Index([FromForm] string grant_type, [FromForm] string code, [FromForm] string redirect_uri, [FromForm] string client_id, [FromForm] string client_secret)
         {
-            return Json(new { access_token = "accesstoken", token_type = "Bearer" });
+            var token = RandomUtil.GenerateRandomBytes(32);
+            return Json(new { access_token = token, token_type = "Bearer" });
         }
     }
 }
