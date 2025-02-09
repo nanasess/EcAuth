@@ -16,6 +16,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EcAuthConsoleApp", "Console
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MockOpenIdProvider", "MockOpenIdProvider\MockOpenIdProvider.csproj", "{600124FB-D514-460C-B316-458B188CA710}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IdpUtilities", "IdpUtilities\IdpUtilities.csproj", "{F84AFBD9-D2D9-423E-B96F-ABA85947EF16}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IdpUtilities.Test", "IdpUtilities.Test\IdpUtilities.Test.csproj", "{D00F16B6-40AD-467A-8AAE-61A280197AE6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -38,6 +42,14 @@ Global
 		{600124FB-D514-460C-B316-458B188CA710}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{600124FB-D514-460C-B316-458B188CA710}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{600124FB-D514-460C-B316-458B188CA710}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F84AFBD9-D2D9-423E-B96F-ABA85947EF16}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F84AFBD9-D2D9-423E-B96F-ABA85947EF16}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F84AFBD9-D2D9-423E-B96F-ABA85947EF16}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F84AFBD9-D2D9-423E-B96F-ABA85947EF16}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D00F16B6-40AD-467A-8AAE-61A280197AE6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D00F16B6-40AD-467A-8AAE-61A280197AE6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D00F16B6-40AD-467A-8AAE-61A280197AE6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D00F16B6-40AD-467A-8AAE-61A280197AE6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
