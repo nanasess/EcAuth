@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
@@ -13,7 +13,7 @@ namespace EcAuthConsoleApp.Commands
     [RegisterCommands]
     internal class CreateKeyPair(EcAuthDbContext context)
     {
-        public int CreateKey(string Id)
+        public int Create(string Id)
         {
             var client = context.Clients.Where(c => c.ClientId == Id).FirstOrDefault();
             if (client == null)

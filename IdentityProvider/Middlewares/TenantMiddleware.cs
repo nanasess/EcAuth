@@ -15,7 +15,9 @@ namespace IdentityProvider.Middlewares
         {
             var host = context.Request.Host.Host;
             var tenantName = ExtractTenantNameFromHost(host);
-            tenantService.SetTenant(tenantName);
+            var defaultOrganizationTenantName = Environment.GetEnvironmentVariable("DEFAULT_ORGANIZATION_TENANT_NAME") ?? string.Empty;
+
+            tenantService.SetTenant(string.IsNullOrEmpty(tenantName) ? defaultOrganizationTenantName : tenantName);
 
             await _next(context);
         }
