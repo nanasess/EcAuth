@@ -25,7 +25,6 @@ namespace MockOpenIdProvider.Controllers
 
             if (Client?.RedirectUri == redirect_uri)
             {
-                var code = Guid.NewGuid();
                 var AuthorizationCode = new AuthorizationCode {
                     Code = Guid.NewGuid().ToString(),
                     CreatedAt = DateTime.UtcNow,
@@ -36,7 +35,7 @@ namespace MockOpenIdProvider.Controllers
                 };
                 await _context.AddAsync(AuthorizationCode);
                 await _context.SaveChangesAsync();
-                return Redirect($"{redirect_uri}?code={code}&state={state}&nonce={nonce}");
+                return Redirect($"{redirect_uri}?code={AuthorizationCode.Code}&state={state}&nonce={nonce}");
             }
 
             return Redirect(
