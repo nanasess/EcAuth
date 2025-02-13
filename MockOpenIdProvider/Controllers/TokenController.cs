@@ -60,7 +60,9 @@ namespace MockOpenIdProvider.Controllers
                 CreatedAt = DateTime.UtcNow,
                 ExpiresIn = (int) (DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalSeconds + 3600,
                 Client = AuthorizationCode.Client,
-                ClientId = AuthorizationCode.ClientId
+                ClientId = AuthorizationCode.ClientId,
+                User = AuthorizationCode.User,
+                UserId = AuthorizationCode.UserId
             };
             await _context.AddAsync(AccessToken);
             await _context.SaveChangesAsync();

@@ -89,11 +89,14 @@ namespace MockOpenIdProvider.Migrations
             var privateKey = rsa.ExportRSAPrivateKeyPem();
             var publicKey = rsa.ExportRSAPublicKeyPem();
 
+            var CLIENT_ID = DotNetEnv.Env.GetString("MOCK_IDP_DEFAULT_CLIENT_ID");
+            var CLIENT_SECRET = DotNetEnv.Env.GetString("MOCK_IDP_DEFAULT_CLIENT_SECRET");
+            var CLIENT_NAME = DotNetEnv.Env.GetString("MOCK_IDP_DEFAULT_CLIENT_NAME");
             migrationBuilder.Sql(@$"
                 INSERT INTO client
                     (client_id, client_secret, client_name, redirect_uri, public_key, private_key)
                 VALUES
-                    ('mockclientid', 'mock-client-secret', 'MockClient', 'https://localhost:8081/auth/callback', '{publicKey}', '{privateKey}');"
+                    ('{CLIENT_ID}', '{CLIENT_SECRET}', '{CLIENT_NAME}', 'https://localhost:8081/auth/callback', '{publicKey}', '{privateKey}');"
             );
         }
 
