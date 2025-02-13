@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MockOpenIdProvider.Models
@@ -21,5 +21,8 @@ namespace MockOpenIdProvider.Models
         [Column("client_id")]
         public int ClientId { get; set; }
         public Client Client { get; set; }
+        [Column("user_id")]
+        public int UserId { get; set; }
+        public MockIdpUser User { get; set; }
     }
 }

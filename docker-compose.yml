@@ -64,4 +64,4 @@ services:
       context: .
       dockerfile: MockOpenIdProvider/Dockerfile
     environment:
-      ConnectionStrings__MockIdpDbContext: "Server=${DB_HOST};Database=MockIdp;User Id=${DB_USER};Password=${DB_PASSWORD};TrustServerCertificate=true;MultipleActiveResultSets=true"
+      ConnectionStrings__MockIdpDbContext: "Server=${DB_HOST};Database=${MOCK_IDP_DB_NAME};User Id=${DB_USER};Password=${DB_PASSWORD};TrustServerCertificate=true;MultipleActiveResultSets=true"
