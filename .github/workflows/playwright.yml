@@ -85,11 +85,15 @@ jobs:
         run: dotnet run --project MockOpenIdProvider --configuration Release &
         env:
           ASPNETCORE_ENVIRONMENT: Development
+          ASPNETCORE_HTTPS_PORT: 9091
+          ASPNETCORE_URLS: https://0.0.0.0:9091
 
       - name: Start IdentityProvider
         run: dotnet run --project IdentityProvider --configuration Release &
         env:
           ASPNETCORE_ENVIRONMENT: Development
+          ASPNETCORE_HTTPS_PORT: 8081
+          ASPNETCORE_URLS: https://0.0.0.0:8081
 
       - name: Install Node.js
         uses: actions/setup-node@v2
