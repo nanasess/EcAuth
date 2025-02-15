@@ -17,6 +17,9 @@ jobs:
       STATE_PASSWORD: <strong_password_string_of_at_least_32_characters>
       MOCK_IDP_DB_NAME: MockIdp
       MOCK_IDP_DEFAULT_USER_PASSWORD: password
+      MOCK_IDP_DEFAULT_CLIENT_ID: mockclientid
+      MOCK_IDP_DEFAULT_CLIENT_SECRET: mock-client-secret
+      MOCK_IDP_DEFAULT_CLIENT_NAME: MockClient
       DEFAULT_ORGANIZATION_CODE: example
       DEFAULT_ORGANIZATION_NAME: example
       DEFAULT_ORGANIZATION_TENANT_NAME: example
