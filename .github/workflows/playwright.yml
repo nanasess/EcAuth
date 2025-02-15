@@ -1,0 +1,113 @@
+name: Playwright E2E Tests - IdentityProvider
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    env:
+      DB_HOST: localhost
+      MIGRATION_DB_HOST: localhost
+      DB_NAME: EcAuthDb
+      DB_USER: SA
+      DB_PASSWORD: <YourStrong@Passw0rd>
+      STATE_PASSWORD: <strong_password_string_of_at_least_32_characters>
+      MOCK_IDP_DB_NAME: MockIdp
+      MOCK_IDP_DEFAULT_USER_PASSWORD: password
+      MOCK_IDP_DEFAULT_CLIENT_ID: mockclientid
+      MOCK_IDP_DEFAULT_CLIENT_SECRET: mock-client-secret
+      MOCK_IDP_DEFAULT_CLIENT_NAME: MockClient
+      DEFAULT_ORGANIZATION_CODE: example
+      DEFAULT_ORGANIZATION_NAME: example
+      DEFAULT_ORGANIZATION_TENANT_NAME: example
+      DEFAULT_CLIENT_ID: client_id
+      DEFAULT_CLIENT_SECRET: client_secret
+      DEFAULT_APP_NAME: app_name
+      GOOGLE_OAUTH2_APP_NAME: google-oauth2
+      GOOGLE_OAUTH2_CLIENT_ID: <Google OAuth2 client_id>
+      GOOGLE_OAUTH2_CLIENT_SECRET: <Google OAuth2 client_secret>
+      GOOGLE_OAUTH2_DISCOVERY_URL: https://accounts.google.com/.well-known/openid-configuration
+      AMAZON_OAUTH2_APP_NAME: amazon-oauth2
+      AMAZON_OAUTH2_CLIENT_ID: <Amazon OAuth2 client_id>
+      AMAZON_OAUTH2_CLIENT_SECRET: <Amazon OAuth2 client_secret>
+      AMAZON_OAUTH2_AUTHORIZATION_ENDPOINT: https://www.amazon.com/ap/oa
+      AMAZON_OAUTH2_TOKEN_ENDPOINT: https://api.amazon.co.jp/auth/o2/token
+      AMAZON_OAUTH2_USERINFO_ENDPOINT: https://api.amazon.com/user/profile
+
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2019-latest
+        env:
+          SA_PASSWORD: ${{ env.DB_PASSWORD }}
+          ACCEPT_EULA: "Y"
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "exit 0"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - run: echo "ConnectionStrings__EcAuthDbContext=Server=${DB_HOST};Database=${DB_NAME};User Id=${DB_USER};Password=${DB_PASSWORD};TrustServerCertificate=true;MultipleActiveResultSets=true" >> $GITHUB_ENV
+      - run: echo "ConnectionStrings__MockIdpDbContext=Server=${DB_HOST};Database=${MOCK_IDP_DB_NAME};User Id=${DB_USER};Password=${DB_PASSWORD};TrustServerCertificate=true;MultipleActiveResultSets=true" >> $GITHUB_ENV
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '8.0.x'
+      - name: Restore .NET tools
+        run: dotnet tool restore
+
+      - name: Install dependencies
+        run: dotnet restore ./EcAuth.sln
+
+      - name: Build IdentityProvider
+        run: dotnet build --no-restore --configuration Release IdentityProvider
+
+      - name: Build MockOpenIdProvider
+        run: dotnet build --no-restore --configuration Release MockOpenIdProvider
+      - name: Migrate IdentityProvider DB
+        working-directory: IdentityProvider
+        run: dotnet ef database update
+
+      - name: Migrate MockOpenIdProvider DB
+        working-directory: MockOpenIdProvider
+        run: dotnet ef database update
+
+      - name: Start MockOpenIdProvider
+        run: |
+          export ASPNETCORE_HTTPS_PORT=9091
+          export ASPNETCORE_URLS="https://0.0.0.0:9091"
+          dotnet run --project MockOpenIdProvider --configuration Release --urls "https://0.0.0.0:9091" &
+        env:
+          ASPNETCORE_ENVIRONMENT: Development
+
+      - name: Start IdentityProvider
+        run: |
+          export ASPNETCORE_HTTPS_PORT=8081
+          export ASPNETCORE_URLS="https://0.0.0.0:8081"
+          dotnet run --project IdentityProvider --configuration Release --urls "https://0.0.0.0:8081" &
+        env:
+          ASPNETCORE_ENVIRONMENT: Development
+
+      - name: Install Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 22
+
+      - name: Install Playwright
+        working-directory: E2ETests
+        run: |
+          yarn install --frozen-lockfile
+          yarn playwright install
+
+      - name: Run Playwright E2E Tests
+        working-directory: E2ETests
+        run: yarn playwright test mock_idp_authorization_code_flow.spec.ts
