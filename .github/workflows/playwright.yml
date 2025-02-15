@@ -23,6 +23,16 @@ jobs:
       DEFAULT_CLIENT_ID: client_id
       DEFAULT_CLIENT_SECRET: client_secret
       DEFAULT_APP_NAME: app_name
+      GOOGLE_OAUTH2_APP_NAME: google-oauth2
+      GOOGLE_OAUTH2_CLIENT_ID: <Google OAuth2 client_id>
+      GOOGLE_OAUTH2_CLIENT_SECRET: <Google OAuth2 client_secret>
+      GOOGLE_OAUTH2_DISCOVERY_URL: https://accounts.google.com/.well-known/openid-configuration
+      AMAZON_OAUTH2_APP_NAME: amazon-oauth2
+      AMAZON_OAUTH2_CLIENT_ID: <Amazon OAuth2 client_id>
+      AMAZON_OAUTH2_CLIENT_SECRET: <Amazon OAuth2 client_secret>
+      AMAZON_OAUTH2_AUTHORIZATION_ENDPOINT: https://www.amazon.com/ap/oa
+      AMAZON_OAUTH2_TOKEN_ENDPOINT: https://api.amazon.co.jp/auth/o2/token
+      AMAZON_OAUTH2_USERINFO_ENDPOINT: https://api.amazon.com/user/profile
 
     services:
       sqlserver:
