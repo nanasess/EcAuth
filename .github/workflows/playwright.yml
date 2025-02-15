@@ -48,10 +48,10 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Install dependencies
-        run: dotnet restore
+        run: dotnet restore ./EcAuth.sln
 
       - name: Build the projects
-        run: dotnet build --no-restore --configuration Release
+        run: dotnet build --no-restore --configuration Release ./EcAuth.sln
 
       - name: Migrate MockOpenIdProvider DB
         run: dotnet ef database update --project MockOpenIdProvider
@@ -72,7 +72,7 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v2
         with:
-          node-version: 16
+          node-version: 22
 
       - name: Install Playwright
         working-directory: E2ETests
