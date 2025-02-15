@@ -55,10 +55,10 @@ jobs:
       - name: Install dependencies
         run: dotnet restore ./EcAuth.sln
 
-      - name: Build MockOpenIdProvider
-        run: dotnet build --no-restore --configuration Release MockOpenIdProvider
       - name: Build IdentityProvider
         run: dotnet build --no-restore --configuration Release IdentityProvider
+      - name: Build MockOpenIdProvider
+        run: dotnet build --no-restore --configuration Release MockOpenIdProvider
 
       - name: Migrate MockOpenIdProvider DB
         working-directory: MockOpenIdProvider
