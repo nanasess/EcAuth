@@ -1,0 +1,85 @@
+name: Playwright E2E Tests - IdentityProvider
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    env:
+      DB_HOST: localhost
+      MIGRATION_DB_HOST: localhost
+      DB_NAME: EcAuthDb
+      DB_USER: SA
+      DB_PASSWORD: <YourStrong@Passw0rd>
+      STATE_PASSWORD: <strong_password_string_of_at_least_32_characters>
+      MOCK_IDP_DB_NAME: MockIdp
+      MOCK_IDP_DEFAULT_USER_PASSWORD: password
+      DEFAULT_ORGANIZATION_CODE: example
+      DEFAULT_ORGANIZATION_NAME: example
+      DEFAULT_ORGANIZATION_TENANT_NAME: example
+      DEFAULT_CLIENT_ID: client_id
+      DEFAULT_CLIENT_SECRET: client_secret
+      DEFAULT_APP_NAME: app_name
+
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2019-latest
+        env:
+          SA_PASSWORD: ${{ env.DB_PASSWORD }}
+          ACCEPT_EULA: "Y"
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "exit 0"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install dependencies
+        run: dotnet restore
+
+      - name: Build the projects
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Migrate MockOpenIdProvider DB
+        run: dotnet ef database update --project MockOpenIdProvider
+
+      - name: Migrate IdentityProvider DB
+        run: dotnet ef database update --project IdentityProvider
+
+      - name: Start MockOpenIdProvider
+        run: dotnet run --project MockOpenIdProvider --configuration Release &
+        env:
+          ASPNETCORE_ENVIRONMENT: Development
+
+      - name: Start IdentityProvider
+        run: dotnet run --project IdentityProvider --configuration Release &
+        env:
+          ASPNETCORE_ENVIRONMENT: Development
+
+      - name: Install Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 16
+
+      - name: Install Playwright
+        working-directory: E2ETests
+        run: |
+          yarn install --frozen-lockfile
+          yarn playwright install
+
+      - name: Run Playwright E2E Tests
+        working-directory: E2ETests
+        run: yarn playwright test mock_idp_authorization_code_flow.spec.ts
