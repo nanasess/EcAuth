@@ -85,7 +85,7 @@ jobs:
         run: |
           export ASPNETCORE_HTTPS_PORT=9091
           export ASPNETCORE_URLS="https://0.0.0.0:9091"
-          dotnet run --project MockOpenIdProvider --configuration Release &
+          dotnet run --project MockOpenIdProvider --configuration Release --urls "https://0.0.0.0:9091" &
         env:
           ASPNETCORE_ENVIRONMENT: Development
 
@@ -93,7 +93,7 @@ jobs:
         run: |
           export ASPNETCORE_HTTPS_PORT=8081
           export ASPNETCORE_URLS="https://0.0.0.0:8081"
-          dotnet run --project IdentityProvider --configuration Release &
+          dotnet run --project IdentityProvider --configuration Release --urls "https://0.0.0.0:8081" &
         env:
           ASPNETCORE_ENVIRONMENT: Development
 
