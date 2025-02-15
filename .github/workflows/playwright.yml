@@ -58,10 +58,12 @@ jobs:
         run: dotnet build --no-restore --configuration Release IdentityProvider
 
       - name: Migrate MockOpenIdProvider DB
-        run: dotnet ef database update --project MockOpenIdProvider
+        working-directory: MockOpenIdProvider
+        run: dotnet ef database update
 
       - name: Migrate IdentityProvider DB
-        run: dotnet ef database update --project IdentityProvider
+        working-directory: IdentityProvider
+        run: dotnet ef database update
 
       - name: Start MockOpenIdProvider
         run: dotnet run --project MockOpenIdProvider --configuration Release &
