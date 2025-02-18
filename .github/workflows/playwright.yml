@@ -82,7 +82,7 @@ jobs:
         working-directory: E2ETests
         run: |
           yarn install --frozen-lockfile
-          yarn playwright install
+          yarn playwright install --with-deps chromium
 
       - name: Run Playwright E2E Tests
         working-directory: E2ETests
