@@ -27,7 +27,7 @@ namespace MockOpenIdProvider.Migrations
                 PasswordHasher<MockIdpUser> passwordHasher = new PasswordHasher<MockIdpUser>();
                 var user = new MockIdpUser
                 {
-                    Email = $"defaultuser@example.com",
+                    Email = DotNetEnv.Env.GetString("MOCK_IDP_DEFAULT_USER_EMAIL"),
                     Password = string.Empty,
                     CreatedAt = DateTimeOffset.Now,
                     UpdatedAt = DateTimeOffset.Now,
