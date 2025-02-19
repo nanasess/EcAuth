@@ -1,7 +1,6 @@
 using System;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore.Migrations;
-using MockOpenIdProvider.Migrations.Utilities;
 using MockOpenIdProvider.Models;
 
 #nullable disable

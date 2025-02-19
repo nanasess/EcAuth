@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore.Migrations;
-using MockOpenIdProvider.Migrations.Utilities;
+using IdpUtilities.Migrations;
 using MockOpenIdProvider.Models;
 
 #nullable disable
@@ -19,7 +19,9 @@ namespace MockOpenIdProvider.Migrations
             var DB_USER = DotNetEnv.Env.GetString("DB_USER");
             var DB_PASSWORD = DotNetEnv.Env.GetString("DB_PASSWORD");
             var clientId = DotNetEnv.Env.GetString("DEFAULT_CLIENT_ID");
-            using (var scope = MigrationServiceProviderFactory.CreateMigrationServiceProvider().CreateScope())
+            using (var scope = MigrationServiceProviderFactory<IdpDbContext>.CreateMigrationServiceProvider(
+                $"Server={MIGRATION_DB_HOST};Database={DB_NAME};User Id={DB_USER};Password={DB_PASSWORD};TrustServerCertificate=true;MultipleActiveResultSets=true"
+                ).BuildServiceProvider().CreateScope())
             {
                 var CLIENT_ID = DotNetEnv.Env.GetString("MOCK_IDP_DEFAULT_CLIENT_ID");
                 var _context = scope.ServiceProvider.GetRequiredService<IdpDbContext>();
