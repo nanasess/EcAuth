@@ -1,5 +1,6 @@
 using IdentityProvider.Models;
 using IdentityProvider.Services;
+using IdpUtilities.Migrations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
@@ -20,12 +21,9 @@ namespace IdentityProvider.Migrations
             var DB_USER = DotNetEnv.Env.GetString("DB_USER");
             var DB_PASSWORD = DotNetEnv.Env.GetString("DB_PASSWORD");
 
-            var serviceProvider = new ServiceCollection()
-                .AddScoped<ITenantService, TenantService>()
-                .AddDbContext<EcAuthDbContext>(options =>
-                    options.UseSqlServer($"Server={MIGRATION_DB_HOST};Database={DB_NAME};User Id={DB_USER};Password={DB_PASSWORD};TrustServerCertificate=true;MultipleActiveResultSets=true"))
-                .BuildServiceProvider();
-            using (var scope = serviceProvider.CreateScope())
+            using (var scope = MigrationServiceProviderFactory<EcAuthDbContext>.CreateMigrationServiceProvider(
+                $"Server={MIGRATION_DB_HOST};Database={DB_NAME};User Id={DB_USER};Password={DB_PASSWORD};TrustServerCertificate=true;MultipleActiveResultSets=true"
+                ).CreateScope())
             {
                 var CLIENT_ID = DotNetEnv.Env.GetString("DEFAULT_CLIENT_ID");
                 var _context = scope.ServiceProvider.GetRequiredService<EcAuthDbContext>();

@@ -1,7 +1,7 @@
-﻿using System.Security.Cryptography;
+using System.Security.Cryptography;
+using IdpUtilities.Migrations;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore.Migrations;
-using MockOpenIdProvider.Migrations.Utilities;
 using MockOpenIdProvider.Models;
 
 #nullable disable
@@ -15,7 +15,13 @@ namespace MockOpenIdProvider.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             DotNetEnv.Env.TraversePath().Load();
-            using (var scope = MigrationServiceProviderFactory.CreateMigrationServiceProvider().CreateScope())
+            var MIGRATION_DB_HOST = DotNetEnv.Env.GetString("MIGRATION_DB_HOST");
+            var DB_NAME = DotNetEnv.Env.GetString("MOCK_IDP_DB_NAME");
+            var DB_USER = DotNetEnv.Env.GetString("DB_USER");
+            var DB_PASSWORD = DotNetEnv.Env.GetString("DB_PASSWORD");
+            using (var scope = MigrationServiceProviderFactory<IdpDbContext>.CreateMigrationServiceProvider(
+                $"Server={MIGRATION_DB_HOST};Database={DB_NAME};User Id={DB_USER};Password={DB_PASSWORD};TrustServerCertificate=true;MultipleActiveResultSets=true"
+                ).CreateScope())
             {
                 var _context = scope.ServiceProvider.GetRequiredService<IdpDbContext>();
                 var clientId = DotNetEnv.Env.GetString("MOCK_IDP_FEDERATE_CLIENT_ID");
