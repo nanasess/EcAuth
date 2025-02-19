@@ -22,8 +22,11 @@ namespace IdentityProvider.Migrations
             var DB_PASSWORD = DotNetEnv.Env.GetString("DB_PASSWORD");
 
             using (var scope = MigrationServiceProviderFactory<EcAuthDbContext>.CreateMigrationServiceProvider(
-                $"Server={MIGRATION_DB_HOST};Database={DB_NAME};User Id={DB_USER};Password={DB_PASSWORD};TrustServerCertificate=true;MultipleActiveResultSets=true"
-                ).CreateScope())
+                    $"Server={MIGRATION_DB_HOST};Database={DB_NAME};User Id={DB_USER};Password={DB_PASSWORD};TrustServerCertificate=true;MultipleActiveResultSets=true"
+                )
+                .AddScoped<ITenantService, TenantService>()
+                .BuildServiceProvider()
+                .CreateScope())
             {
                 var CLIENT_ID = DotNetEnv.Env.GetString("DEFAULT_CLIENT_ID");
                 var _context = scope.ServiceProvider.GetRequiredService<EcAuthDbContext>();

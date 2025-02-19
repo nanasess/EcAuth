@@ -11,6 +11,8 @@
     <DockerComposeProjectName>ec-auth</DockerComposeProjectName>
   </PropertyGroup>
   <ItemGroup>
+    <None Include=".github\workflows\dotnet_tests.yml" />
+    <None Include=".github\workflows\playwright.yml" />
     <None Include="docker-compose.override.yml">
       <DependentUpon>docker-compose.yml</DependentUpon>
     </None>

@@ -10,12 +10,10 @@ namespace IdpUtilities.Migrations
 {
     public class MigrationServiceProviderFactory<TContext> where TContext : DbContext
     {
-        public static IServiceProvider CreateMigrationServiceProvider(string connectionString)
+        public static IServiceCollection CreateMigrationServiceProvider(string connectionString)
         {
             return new ServiceCollection()
-                .AddDbContext<TContext>(options =>
-                    options.UseSqlServer(connectionString))
-                .BuildServiceProvider();
+                .AddDbContext<TContext>(options => options.UseSqlServer(connectionString));
         }
     }
 }

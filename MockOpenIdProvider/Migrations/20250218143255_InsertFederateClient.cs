@@ -21,7 +21,7 @@ namespace MockOpenIdProvider.Migrations
             var DB_PASSWORD = DotNetEnv.Env.GetString("DB_PASSWORD");
             using (var scope = MigrationServiceProviderFactory<IdpDbContext>.CreateMigrationServiceProvider(
                 $"Server={MIGRATION_DB_HOST};Database={DB_NAME};User Id={DB_USER};Password={DB_PASSWORD};TrustServerCertificate=true;MultipleActiveResultSets=true"
-                ).CreateScope())
+                ).BuildServiceProvider().CreateScope())
             {
                 var _context = scope.ServiceProvider.GetRequiredService<IdpDbContext>();
                 var clientId = DotNetEnv.Env.GetString("MOCK_IDP_FEDERATE_CLIENT_ID");
