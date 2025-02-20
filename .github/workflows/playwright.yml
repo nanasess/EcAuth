@@ -89,3 +89,9 @@ jobs:
       - name: Run Playwright E2E Tests
         working-directory: E2ETests
         run: yarn playwright test
+      - name: Upload evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: 'test-results/'

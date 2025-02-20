@@ -24,6 +24,7 @@ test.describe.serial('認可コードフローフェデレーションのテス�
     const authUrl = `${authorizationEndpoint}?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scopes)}&provider_name=${providerName}&state=${state}`;
     console.log(authUrl);
     await page.goto(authUrl);
+    await expect(page).toHaveURL(/auth\/callback/);
     const url = new URL(page.url());
     console.log(`url:${url}`);
     console.log(`code: ${url.searchParams.get('code')}`);
