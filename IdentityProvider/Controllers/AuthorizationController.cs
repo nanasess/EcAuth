@@ -3,7 +3,6 @@ using IdentityProvider.Models;
 using IdentityProvider.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Web;
 
 namespace IdentityProvider.Controllers
 {
@@ -64,10 +63,10 @@ namespace IdentityProvider.Controllers
             return Redirect(
                 $"{OpenIdProvider.AuthorizationEndpoint}" +
                 $"?client_id={OpenIdProvider.IdpClientId}" +
-                $"&scope={HttpUtility.UrlEncode(scopes)}" +
+                $"&scope={Uri.EscapeDataString(scopes)}" +
                 $"&response_type=code" +
-                $"&redirect_uri={HttpUtility.UrlEncode("https://localhost:8081/auth/callback")}" +
-                $"&state={HttpUtility.UrlEncode(sealedData)}"
+                $"&redirect_uri={Uri.EscapeDataString("https://localhost:8081/auth/callback")}" +
+                $"&state={Uri.EscapeDataString(sealedData)}"
              );
         }
     }

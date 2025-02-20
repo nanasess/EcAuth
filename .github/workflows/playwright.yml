@@ -33,6 +33,10 @@ jobs:
       - run: echo "DB_HOST=localhost" >> $GITHUB_ENV
       - run: echo "ConnectionStrings__EcAuthDbContext=Server=${DB_HOST};Database=${DB_NAME};User Id=${DB_USER};Password=${DB_PASSWORD};TrustServerCertificate=true;MultipleActiveResultSets=true" >> $GITHUB_ENV
       - run: echo "ConnectionStrings__MockIdpDbContext=Server=${DB_HOST};Database=${MOCK_IDP_DB_NAME};User Id=${DB_USER};Password=${DB_PASSWORD};TrustServerCertificate=true;MultipleActiveResultSets=true" >> $GITHUB_ENV
+      - run: echo "FEDERATE_OAUTH2_CLIENT_ID=${MOCK_IDP_FEDERATE_CLIENT_ID}" >> $GITHUB_ENV
+      - run: echo "FEDERATE_OAUTH2_CLIENT_SECRET=${MOCK_IDP_FEDERATE_CLIENT_SECRET}" >> $GITHUB_ENV
+      - run: echo "FEDERATE_OAUTH2_TOKEN_ENDPOINT=http://mockopenidprovider:8080/token" >> $GITHUB_ENV
+      - run: echo "FEDERATE_OAUTH2_USERINFO_ENDPOINT=http://mockopenidprovider:8080/userinfo" >> $GITHUB_ENV
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v1
@@ -86,4 +90,4 @@ jobs:
 
       - name: Run Playwright E2E Tests
         working-directory: E2ETests
-        run: yarn playwright test mock_idp_authorization_code_flow.spec.ts
+        run: yarn playwright test
