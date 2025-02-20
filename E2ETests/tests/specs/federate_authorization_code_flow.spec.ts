@@ -25,7 +25,8 @@ test.describe.serial('認可コードフローフェデレーションのテス�
     console.log(authUrl);
     await page.goto(authUrl);
     const url = new URL(page.url());
-    console.log(url.searchParams.get('state'));
+    console.log(`code: ${url.searchParams.get('code')}`);
+    console.log(`state: ${url.searchParams.get('state')}`);
     const response = await tokenRequest.post(tokenEndpoint, {
       form: {
         client_id: clientId,
