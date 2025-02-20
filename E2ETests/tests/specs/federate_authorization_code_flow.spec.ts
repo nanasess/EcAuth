@@ -22,7 +22,7 @@ test.describe.serial('認可コードフローフェデレーションのテス�
   test('フェデレーションをテストをします', async ({ page }) => {
     const tokenRequest = await request.newContext();
     const authUrl = `${authorizationEndpoint}?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scopes)}&provider_name=${providerName}&state=${state}`;
-    console.log(authUrl);
+    // console.log(authUrl);
     await page.goto(authUrl);
     // await expect(page).toHaveURL(/auth\/callback/);
     const url = new URL(page.url());
@@ -51,7 +51,7 @@ test.describe.serial('認可コードフローフェデレーションのテス�
       }
     });
 
-    console.log(await userInfoResponse.json());
+    // console.log(await userInfoResponse.json());
     expect((await userInfoResponse.json()).sub).toBeTruthy();
   });
 });
