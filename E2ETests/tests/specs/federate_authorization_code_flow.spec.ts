@@ -40,7 +40,7 @@ test.describe.serial('認可コードフローフェデレーションのテス�
         state: (url.searchParams.get('state') ?? '').replace(/ /g, '+')
       }
     });
-    console.log(await response.body());
+    console.log((await response.body()).toString());
     expect((await response.json()).access_token).toBeTruthy();
     expect((await response.json()).token_type).toBe('Bearer');
 

@@ -19,28 +19,36 @@ namespace MockOpenIdProvider.Controllers
         /// <summary>アクセストークンを受け取り、ユーザ情報を返します。</summary>
         public Task<IActionResult> Index([FromHeader] string authorization)
         {
-            if (string.IsNullOrEmpty(authorization))
+            try
             {
-                return Task.FromResult<IActionResult>(Json(new { error = "invalid_request" }));
+                if (string.IsNullOrEmpty(authorization))
+                {
+                    return Task.FromResult<IActionResult>(Json(new { error = "invalid_request" }));
+                }
+                var authorizationHeaderValue = AuthenticationHeaderValue.Parse(authorization);
+                if (authorizationHeaderValue.Scheme != "Bearer")
+                {
+                    return Task.FromResult<IActionResult>(Json(new { error = "invalid_request" }));
+                }
+                var token = authorizationHeaderValue.Parameter;
+                var AccessToken = _context.AccessTokens.Where(
+                    at => at.Token == token
+                ).FirstOrDefault();
+                if (AccessToken == null)
+                {
+                    return Task.FromResult<IActionResult>(Json(new { error = "invalid_token" }));
+                }
+                if (AccessToken.ExpiresIn < (int)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalSeconds)
+                {
+                    return Task.FromResult<IActionResult>(Json(new { error = "invalid_token" }));
+                }
+                return Task.FromResult<IActionResult>(Json(new { sub = AccessToken.UserId }));
             }
-            var authorizationHeaderValue = AuthenticationHeaderValue.Parse(authorization);
-            if (authorizationHeaderValue.Scheme != "Bearer")
+            catch (Exception ex)
             {
-                return Task.FromResult<IActionResult>(Json(new { error = "invalid_request" }));
+                System.IO.File.AppendAllText("logs/exceptions.log", ex.ToString());
+                throw;
             }
-            var token = authorizationHeaderValue.Parameter;
-            var AccessToken = _context.AccessTokens.Where(
-                at => at.Token == token
-            ).FirstOrDefault();
-            if (AccessToken == null)
-            {
-                return Task.FromResult<IActionResult>(Json(new { error = "invalid_token" }));
-            }
-            if (AccessToken.ExpiresIn < (int)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalSeconds)
-            {
-                return Task.FromResult<IActionResult>(Json(new { error = "invalid_token" }));
-            }
-            return Task.FromResult<IActionResult>(Json(new { sub = AccessToken.UserId }));
         }
 
         [HttpGet("me")]

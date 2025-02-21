@@ -95,3 +95,10 @@ jobs:
         with:
           name: test-results
           path: 'E2ETests/test-results/'
+
+      - name: Display .NET exceptions
+        if: failure()
+        run: cat IdentityProvider/logs/*.log || echo "No logs found"
+      - name: Display .NET exceptions
+        if: failure()
+        run: cat MockOpenIdProvider/logs/*.log || echo "No logs found"

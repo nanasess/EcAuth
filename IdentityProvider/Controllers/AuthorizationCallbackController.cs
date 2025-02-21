@@ -30,11 +30,19 @@ namespace IdentityProvider.Controllers
         /// </remarks>
         public async Task<IActionResult> Index([FromQuery] string? code, [FromQuery] string? state, [FromQuery] string? scope, [FromQuery] string? error, [FromQuery] string? error_description)
         {
-            var ecAuthDbContext = _context.Clients.Include(c => c.Organization);
-            ViewData["Code"] = code;
-            ViewData["State"] = state;
-            ViewData["Scope"] = scope;
-            return View("Index");
+            try
+            {
+                var ecAuthDbContext = _context.Clients.Include(c => c.Organization);
+                ViewData["Code"] = code;
+                ViewData["State"] = state;
+                ViewData["Scope"] = scope;
+                return View("Index");
+            }
+            catch (Exception ex)
+            {
+                System.IO.File.AppendAllText("logs/exceptions.log", ex.ToString());
+                throw;
+            }
         }
 
         [HttpPost]
