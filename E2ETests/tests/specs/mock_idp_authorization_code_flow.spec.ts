@@ -2,9 +2,9 @@ import { test, expect, request } from '@playwright/test';
 
 test.describe.serial('認可コードフローのテストをします', () => {
 
-  const authorizationEndpoint = 'https://localhost:9091/authorization';
-  const tokenEndpoint = 'https://localhost:9091/token';
-  const userInfoEndpoint = 'https://localhost:9091/userinfo';
+  const authorizationEndpoint = 'http://localhost:9090/authorization';
+  const tokenEndpoint = 'http://localhost:9090/token';
+  const userInfoEndpoint = 'http://localhost:9090/userinfo';
   const redirectUri = 'https://localhost:8081/auth/callback';
   const clientId = 'mockclientid';
   const clientSecret = 'mock-client-secret';
