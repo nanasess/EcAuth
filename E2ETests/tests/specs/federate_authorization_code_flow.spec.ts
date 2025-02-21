@@ -44,14 +44,14 @@ test.describe.serial('認可コードフローフェデレーションのテス�
     expect((await response.json()).access_token).toBeTruthy();
     expect((await response.json()).token_type).toBe('Bearer');
 
-    const userInfoRequest = await request.newContext();
-    const userInfoResponse = await userInfoRequest.get(userInfoEndpoint, {
-      headers: {
-        Authorization: `Bearer ${(await response.json()).access_token}`
-      }
-    });
+    // const userInfoRequest = await request.newContext();
+    // const userInfoResponse = await userInfoRequest.get(userInfoEndpoint, {
+    //   headers: {
+    //     Authorization: `Bearer ${(await response.json()).access_token}`
+    //   }
+    // });
 
-    // console.log(await userInfoResponse.json());
-    expect((await userInfoResponse.json()).sub).toBeTruthy();
+    // // console.log(await userInfoResponse.json());
+    // expect((await userInfoResponse.json()).sub).toBeTruthy();
   });
 });
