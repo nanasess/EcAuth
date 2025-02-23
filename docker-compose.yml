@@ -1,3 +1,7 @@
+networks:
+  backend:
+    driver: bridge
+
 volumes:
   sql1data:
     driver: local
@@ -25,6 +29,8 @@ services:
       AMAZON_OAUTH2_USERINFO_ENDPOINT: ${AMAZON_OAUTH2_USERINFO_ENDPOINT}
       DEFAULT_ORGANIZATION_CODE: ${DEFAULT_ORGANIZATION_CODE}
       DEFAULT_ORGANIZATION_TENANT_NAME: ${DEFAULT_ORGANIZATION_TENANT_NAME}
+    networks:
+      - backend
   db:
     environment:
       ACCEPT_EULA: "Y"
@@ -35,6 +41,8 @@ services:
       - ./docker/db/backup:/var/opt/mssql/backup
     ports:
       - 1433:1433
+    networks:
+      - backend
     restart: always
     healthcheck:
       test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U ${DB_USER} -P '${DB_PASSWORD}' -Q 'SELECT 1' || exit 1"]
@@ -65,3 +73,5 @@ services:
       dockerfile: MockOpenIdProvider/Dockerfile
     environment:
       ConnectionStrings__MockIdpDbContext: "Server=${DB_HOST};Database=${MOCK_IDP_DB_NAME};User Id=${DB_USER};Password=${DB_PASSWORD};TrustServerCertificate=true;MultipleActiveResultSets=true"
+    networks:
+      - backend

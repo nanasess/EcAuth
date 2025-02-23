@@ -1,6 +1,7 @@
 using IdentityProvider.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 
 namespace IdentityProvider.Controllers
 {
@@ -9,10 +10,14 @@ namespace IdentityProvider.Controllers
     public class TokenController : ControllerBase
     {
         private readonly EcAuthDbContext _context;
-        public TokenController(EcAuthDbContext context)
+        private readonly IHostEnvironment _environment;
+
+        public TokenController(EcAuthDbContext context, IHostEnvironment environment)
         {
             _context = context;
+            _environment = environment;
         }
+
         /// <summary>
         /// IdP の Token endpoint にリクエストを送信し、アクセストークンを取得します。
         /// 取得したアクセストークンを返却します。
@@ -28,9 +33,19 @@ namespace IdentityProvider.Controllers
             var options = new Iron.Options();
             var State = await Iron.Unseal<State>(state, password, options);
             var IdentityProviderId = State.OpenIdProviderId;
-            var IdentityProvider = await _context.OpenIdProviders.Where(p => p.Id == IdentityProviderId)
+            var IdentityProvider = await _context.OpenIdProviders
+                .Where(p => p.Id == IdentityProviderId)
                 .FirstOrDefaultAsync();
-            using (var client = new HttpClient())
+
+            var handler = _environment.IsDevelopment()
+                ? new HttpClientHandler
+                {
+                    ServerCertificateCustomValidationCallback
+                        = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+                }
+                : new HttpClientHandler();
+
+            using (var client = new HttpClient(handler))
             {
                 var response = await client.PostAsync(
                     IdentityProvider.TokenEndpoint,
@@ -38,12 +53,13 @@ namespace IdentityProvider.Controllers
                     {
                         { "grant_type", "authorization_code" },
                         { "code", code },
-                        { "redirect_uri", "https://localhost:8081/auth/callback" },//State.RedirectUri },
+                        { "redirect_uri", "https://localhost:8081/auth/callback" },
                         { "client_id", IdentityProvider.IdpClientId },
                         { "client_secret", IdentityProvider.IdpClientSecret },
                         { "state", state }
                     })
                 );
+
                 var content = await response.Content.ReadAsStringAsync();
                 return Ok(content);
             }
