@@ -1,6 +1,7 @@
 using IdentityProvider.Filters;
 using IdentityProvider.Models;
 using IdentityProvider.Services;
+using IdpUtilities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -51,9 +52,9 @@ namespace IdentityProvider.Controllers
             var password = Environment.GetEnvironmentVariable("STATE_PASSWORD");
             var options = new Iron.Options();
 
-            var sealedData = await Iron.Seal(data, password, options);
+            var sealedData = await Iron.Seal<State>(data, password, options);
             Console.WriteLine($"Sealed Data: {sealedData}");
-            var unsealedData = await Iron.Unseal<dynamic>(sealedData, password, options);
+            var unsealedData = await Iron.Unseal<State>(sealedData, password, options);
             Console.WriteLine($"Unsealed Data: {unsealedData}");
             var scopes = "openid email profile";
             if (OpenIdProvider.Name == "amazon-oauth2")
