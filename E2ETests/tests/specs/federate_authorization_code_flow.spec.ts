@@ -37,7 +37,7 @@ test.describe.serial('認可コードフローフェデレーションのテス�
         scope: scopes,
         redirect_uri: redirectUri,
         grant_type: 'authorization_code',
-        state: (url.searchParams.get('state') ?? '').replace(/ /g, '+')
+        state: (url.searchParams.get('state') ?? '')
       }
     });
     console.log((await response.body()).toString());
