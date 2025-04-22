@@ -135,7 +135,7 @@ namespace IdpUtilities
             var key = await GenerateKey(password, decryptOptions);
             var decrypted = DecryptStringFromBytes_Aes(encrypted, key.Key, key.Iv);
 
-            return JsonSerializer.Deserialize<T>(decrypted) ?? throw new Exception("Failed to deserialize data");
+            return JsonSerializer.Deserialize<T>(decrypted) ?? throw new JsonException($"Failed to deserialize data into type {typeof(T)}. Data: {decrypted}");
         }
 
         private static async Task<(byte[] Key, byte[] Iv, string Salt)> GenerateKey(string password, Options options)
