@@ -64,5 +64,45 @@ namespace IdpUtilities.Test
                 await Iron.Unseal<TestModel>(sealedData, "wrongpassword", options);
             });
         }
+
+        [Fact]
+        public async Task SealAndUnseal_WorksWithSpecialCharacters()
+        {
+            // データに特殊文字（Base64エンコードで+や/になる文字）を含める
+            var model = new TestModel {
+                Name = "特殊文字テスト+/=?&%$#@!{}[]",
+                Age = 42
+            };
+
+            var sealedData = await Iron.Seal(model, password, options);
+            var unsealedModel = await Iron.Unseal<TestModel>(sealedData, password, options);
+
+            Assert.Equal(model.Name, unsealedModel.Name);
+            Assert.Equal(model.Age, unsealedModel.Age);
+        }
+
+        [Fact]
+        public async Task Seal_GeneratesUrlSafeString()
+        {
+            // 複雑なデータを作成して確実にBase64エンコード時に特殊文字が含まれるようにする
+            var complexData = new byte[1000];
+            new Random(123).NextBytes(complexData); // 固定シードで再現性を確保
+            var model = new TestModel {
+                Name = Convert.ToBase64String(complexData),
+                Age = 100
+            };
+
+            var sealedData = await Iron.Seal(model, password, options);
+
+            // シールされた文字列にURL安全でない文字が含まれていないことを確認
+            Assert.DoesNotContain('+', sealedData);
+            Assert.DoesNotContain('/', sealedData);
+            Assert.DoesNotContain('=', sealedData);
+
+            // アンシールも正常に動作することを確認
+            var unsealedModel = await Iron.Unseal<TestModel>(sealedData, password, options);
+            Assert.Equal(model.Name, unsealedModel.Name);
+            Assert.Equal(model.Age, unsealedModel.Age);
+        }
     }
 }

@@ -26,11 +26,52 @@ namespace IdpUtilities
             public int Ttl { get; set; } = 0;
             public int TimestampSkewSec { get; set; } = 60;
             public int LocalTimeOffsetMsec { get; set; } = 0;
-            public string Salt { get; set; }
-            public string Iv { get; set; }
+            public string? Salt { get; set; }
+            public string? Iv { get; set; }
         }
 
         private static readonly string MacPrefix = "Fe26.2";
+
+        /// <summary>
+        /// Convert a Base64 string to a URL-safe Base64 string
+        /// </summary>
+        private static string ToBase64UrlSafe(string base64)
+        {
+            return base64.Replace('+', '-').Replace('/', '_').Replace("=", string.Empty);
+        }
+
+        /// <summary>
+        /// Convert bytes to a URL-safe Base64 string
+        /// </summary>
+        private static string ToBase64UrlSafe(byte[] data)
+        {
+            return ToBase64UrlSafe(Convert.ToBase64String(data));
+        }
+
+        /// <summary>
+        /// Convert a URL-safe Base64 string back to a standard Base64 string for decoding
+        /// </summary>
+        private static string FromBase64UrlSafe(string base64Url)
+        {
+            string base64 = base64Url.Replace('-', '+').Replace('_', '/');
+
+            // Add padding if needed
+            switch (base64.Length % 4)
+            {
+                case 2: base64 += "=="; break;
+                case 3: base64 += "="; break;
+            }
+
+            return base64;
+        }
+
+        /// <summary>
+        /// Convert a URL-safe Base64 string to bytes
+        /// </summary>
+        private static byte[] FromBase64UrlSafeToBytes(string base64Url)
+        {
+            return Convert.FromBase64String(FromBase64UrlSafe(base64Url));
+        }
 
         public static async Task<string> Seal<T>(T model, string password, Options options)
         {
@@ -41,8 +82,8 @@ namespace IdpUtilities
             var key = await GenerateKey(password, options);
             var encrypted = EncryptStringToBytes_Aes(objectString, key.Key, key.Iv);
 
-            var encryptedB64 = Convert.ToBase64String(encrypted);
-            var iv = Convert.ToBase64String(key.Iv);
+            var encryptedB64 = ToBase64UrlSafe(encrypted);
+            var iv = ToBase64UrlSafe(key.Iv);
             var expiration = options.Ttl > 0 ? (now + options.Ttl).ToString() : "";
             var macBaseString = $"{MacPrefix}*{key.Salt}*{iv}*{encryptedB64}*{expiration}";
 
@@ -89,12 +130,12 @@ namespace IdpUtilities
                 throw new Exception("Bad hmac value");
             }
 
-            var encrypted = Convert.FromBase64String(encryptedB64);
+            var encrypted = FromBase64UrlSafeToBytes(encryptedB64);
             var decryptOptions = new Options { Algorithm = options.Algorithm, Salt = encryptionSalt, Iv = encryptionIv };
             var key = await GenerateKey(password, decryptOptions);
             var decrypted = DecryptStringFromBytes_Aes(encrypted, key.Key, key.Iv);
 
-            return JsonSerializer.Deserialize<T>(decrypted);
+            return JsonSerializer.Deserialize<T>(decrypted) ?? throw new JsonException($"Failed to deserialize data into type {typeof(T)}. Data: {decrypted}");
         }
 
         private static async Task<(byte[] Key, byte[] Iv, string Salt)> GenerateKey(string password, Options options)
@@ -111,7 +152,7 @@ namespace IdpUtilities
 
             var salt = options.Salt ?? GenerateRandomSalt(options.SaltBits);
             var key = await Pbkdf2(password, salt, options.Iterations, options.Algorithm);
-            var iv = string.IsNullOrEmpty(options.Iv) ? GenerateRandomIv(options.Algorithm) : Convert.FromBase64String(options.Iv);
+            var iv = string.IsNullOrEmpty(options.Iv) ? GenerateRandomIv(options.Algorithm) : FromBase64UrlSafeToBytes(options.Iv);
 
             return (key, iv, salt);
         }
@@ -161,11 +202,11 @@ namespace IdpUtilities
             }
         }
 
-        private static async Task<byte[]> Pbkdf2(string password, string salt, int iterations, string algorithm)
+        private static Task<byte[]> Pbkdf2(string password, string salt, int iterations, string algorithm)
         {
             using (var rfc2898DeriveBytes = new Rfc2898DeriveBytes(password, Encoding.UTF8.GetBytes(salt), iterations, HashAlgorithmName.SHA256))
             {
-                return rfc2898DeriveBytes.GetBytes(32);
+                return Task.FromResult(rfc2898DeriveBytes.GetBytes(32));
             }
         }
 
@@ -175,7 +216,7 @@ namespace IdpUtilities
             using (var hmac = new HMACSHA256(key.Key))
             {
                 var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(data));
-                var digest = Convert.ToBase64String(hash).Replace('+', '-').Replace('/', '_').Replace("=", string.Empty);
+                var digest = ToBase64UrlSafe(hash);
                 return (digest, key.Salt);
             }
         }
@@ -187,7 +228,7 @@ namespace IdpUtilities
             {
                 rng.GetBytes(salt);
             }
-            return Convert.ToBase64String(salt);
+            return ToBase64UrlSafe(salt);
         }
 
         private static byte[] GenerateRandomIv(string algorithm)
