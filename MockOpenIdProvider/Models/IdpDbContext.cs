@@ -13,5 +13,6 @@ namespace MockOpenIdProvider.Models
         public DbSet<AuthorizationCode> AuthorizationCodes { get; set; }
         public DbSet<AccessToken> AccessTokens { get; set; }
         public DbSet<MockIdpUser> Users { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
     }
 }
