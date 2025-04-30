@@ -27,3 +27,11 @@ jobs:
     - name: Test
       working-directory: ./IdpUtilities.Test
       run: dotnet test --no-build --verbosity normal
+
+    - name: Build
+      working-directory: ./MockOpenIdProvider.Test
+      run: dotnet build --no-restore
+
+    - name: Test
+      working-directory: ./MockOpenIdProvider.Test
+      run: dotnet test --no-build --verbosity normal
