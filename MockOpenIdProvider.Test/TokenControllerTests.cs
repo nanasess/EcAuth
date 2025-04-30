@@ -22,6 +22,7 @@ namespace MockOpenIdProvider.Test
                 .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
                 .Options;
             var context = new IdpDbContext(options);
+
             return context;
         }
 

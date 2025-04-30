@@ -17,7 +17,7 @@ namespace IdentityProvider.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.12")
+                .HasAnnotation("ProductVersion", "9.0.4")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -51,7 +51,7 @@ namespace IdentityProvider.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("account");
+                    b.ToTable("account", (string)null);
                 });
 
             modelBuilder.Entity("IdentityProvider.Models.Client", b =>
@@ -94,7 +94,7 @@ namespace IdentityProvider.Migrations
 
                     b.HasIndex("OrganizationId");
 
-                    b.ToTable("client");
+                    b.ToTable("client", (string)null);
                 });
 
             modelBuilder.Entity("IdentityProvider.Models.OpenIdProvider", b =>
@@ -161,7 +161,7 @@ namespace IdentityProvider.Migrations
 
                     b.HasIndex("ClientId");
 
-                    b.ToTable("open_id_provider");
+                    b.ToTable("open_id_provider", (string)null);
                 });
 
             modelBuilder.Entity("IdentityProvider.Models.OpenIdProviderScope", b =>
@@ -198,7 +198,7 @@ namespace IdentityProvider.Migrations
 
                     b.HasIndex("OpenIdProviderId");
 
-                    b.ToTable("open_id_provider_scope");
+                    b.ToTable("open_id_provider_scope", (string)null);
                 });
 
             modelBuilder.Entity("IdentityProvider.Models.Organization", b =>
@@ -234,7 +234,7 @@ namespace IdentityProvider.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("organization");
+                    b.ToTable("organization", (string)null);
                 });
 
             modelBuilder.Entity("IdentityProvider.Models.RedirectUri", b =>
@@ -267,7 +267,7 @@ namespace IdentityProvider.Migrations
 
                     b.HasIndex("ClientId");
 
-                    b.ToTable("redirect_uri");
+                    b.ToTable("redirect_uri", (string)null);
                 });
 
             modelBuilder.Entity("IdentityProvider.Models.RsaKeyPair", b =>
@@ -298,7 +298,7 @@ namespace IdentityProvider.Migrations
                     b.HasIndex("ClientId")
                         .IsUnique();
 
-                    b.ToTable("rsa_key_pair");
+                    b.ToTable("rsa_key_pair", (string)null);
                 });
 
             modelBuilder.Entity("IdentityProvider.Models.Client", b =>

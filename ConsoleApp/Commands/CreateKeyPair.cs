@@ -13,7 +13,7 @@ namespace EcAuthConsoleApp.Commands
     [RegisterCommands]
     internal class CreateKeyPair(EcAuthDbContext context)
     {
-        public int Create(string Id)
+        public int Create2(string Id)
         {
             var client = context.Clients.Where(c => c.ClientId == Id).FirstOrDefault();
             if (client == null)
