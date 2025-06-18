@@ -43,9 +43,8 @@ jobs:
                   token: ${{ secrets.ORG_PAT }}
 
             - name: Create project root CLAUDE.md
-              working_directory: ../
               run: |
-                  cat > CLAUDE.md << 'EOF'
+                  cat > ../CLAUDE.md << 'EOF'
                   # プロジェクト全体の概要
                   
                   このプロジェクトは以下の2つのリポジトリで構成されています：
@@ -73,4 +72,3 @@ jobs:
                   claude_refresh_token: ${{ secrets.CLAUDE_REFRESH_TOKEN }}
                   claude_expires_at: ${{ secrets.CLAUDE_EXPIRES_AT }}
                   allowed_tools: "Bash,mcp__github_file_ops__update_issue_comment,mcp__github_file_ops__commit_files,mcp__github_file_ops__create_issue,mcp__github_file_ops__create_pull_request,mcp__github_file_ops__list_issues"
-                  working_directory: EcAuth
