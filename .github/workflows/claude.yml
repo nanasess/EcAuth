@@ -32,18 +32,18 @@ jobs:
             - name: Checkout EcAuth repository
               uses: actions/checkout@v4
               with:
-                  path: EcAuth
                   fetch-depth: 1
 
             - name: Checkout EcAuthDocs repository
               uses: actions/checkout@v4
               with:
                   repository: nanasess/EcAuthDocs
-                  path: EcAuthDocs
+                  path: ../EcAuthDocs
                   fetch-depth: 1
                   token: ${{ secrets.ORG_PAT }}
 
             - name: Create project root CLAUDE.md
+              working_directory: ../
               run: |
                   cat > CLAUDE.md << 'EOF'
                   # プロジェクト全体の概要
@@ -67,10 +67,10 @@ jobs:
             - name: Run Claude Code
               id: claude
               uses: nanasess/claude-code-action@main
-              working_directory: EcAuth
               with:
                   use_oauth: 'true'
                   claude_access_token: ${{ secrets.CLAUDE_ACCESS_TOKEN }}
                   claude_refresh_token: ${{ secrets.CLAUDE_REFRESH_TOKEN }}
                   claude_expires_at: ${{ secrets.CLAUDE_EXPIRES_AT }}
                   allowed_tools: "Bash,mcp__github_file_ops__update_issue_comment,mcp__github_file_ops__commit_files,mcp__github_file_ops__create_issue,mcp__github_file_ops__create_pull_request,mcp__github_file_ops__list_issues"
+                  working_directory: EcAuth
