@@ -29,10 +29,40 @@ jobs:
             id-token: write
 
         steps:
-            - name: Checkout repository
+            - name: Checkout EcAuth repository
               uses: actions/checkout@v4
               with:
+                  path: EcAuth
                   fetch-depth: 1
+
+            - name: Checkout EcAuthDocs repository
+              uses: actions/checkout@v4
+              with:
+                  repository: nanasess/EcAuthDocs
+                  path: EcAuthDocs
+                  fetch-depth: 1
+                  token: ${{ secrets.ORG_PAT }}
+
+            - name: Create project root CLAUDE.md
+              run: |
+                  cat > CLAUDE.md << 'EOF'
+                  # プロジェクト全体の概要
+                  
+                  このプロジェクトは以下の2つのリポジトリで構成されています：
+                  
+                  ## リポジトリ構成
+                  - **EcAuthDocs/**: 全てのドキュメント、設計書、ガイドを管理
+                  - **EcAuth/**: アプリケーションコードのみを管理
+                  
+                  ## 作業時の注意点
+                  - ドキュメント関連の作業は EcAuthDocs/ で実行
+                  - コード関連の作業は EcAuth/ で実行
+                  - 両リポジトリ間の整合性を保つ
+                  - 日本語で回答してください
+                  
+                  ## 関連ドキュメント
+                  詳細な情報は EcAuthDocs/CLAUDE.md を参照してください。
+                  EOF
 
             - name: Run Claude Code
               id: claude
@@ -43,3 +73,4 @@ jobs:
                   claude_refresh_token: ${{ secrets.CLAUDE_REFRESH_TOKEN }}
                   claude_expires_at: ${{ secrets.CLAUDE_EXPIRES_AT }}
                   allowed_tools: "Bash,mcp__github_file_ops__update_issue_comment,mcp__github_file_ops__commit_files,mcp__github_file_ops__create_issue,mcp__github_file_ops__create_pull_request,mcp__github_file_ops__list_issues"
+                  working_directory: EcAuth
