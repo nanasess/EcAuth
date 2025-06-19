@@ -487,3 +487,6 @@ $RECYCLE.BIN/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# docs
+/EcAuthDocs/
