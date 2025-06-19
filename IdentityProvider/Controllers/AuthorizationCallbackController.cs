@@ -1,4 +1,5 @@
 using IdentityProvider.Models;
+using IdentityProvider.Services;
 using IdpUtilities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -10,10 +11,17 @@ namespace IdentityProvider.Controllers
     public class AuthorizationCallbackController : Controller
     {
         private readonly EcAuthDbContext _context;
+        private readonly IUserService _userService;
+        private readonly ILogger<AuthorizationCallbackController> _logger;
 
-        public AuthorizationCallbackController(EcAuthDbContext context)
+        public AuthorizationCallbackController(
+            EcAuthDbContext context, 
+            IUserService userService,
+            ILogger<AuthorizationCallbackController> logger)
         {
             _context = context;
+            _userService = userService;
+            _logger = logger;
         }
 
         [HttpGet]
@@ -49,21 +57,83 @@ namespace IdentityProvider.Controllers
         [HttpPost]
         public async Task<IActionResult> Index([FromForm] string code, [FromForm] string state, [FromForm] string scope)
         {
-            var password = Environment.GetEnvironmentVariable("STATE_PASSWORD");
-            var options = new Iron.Options();
-            var State = await Iron.Unseal<State>(state, password, options);
-            var IdentityProviderId = State.OpenIdProviderId;
-            var IdentityProvider = await _context.OpenIdProviders
-                .Where(p => p.Id == IdentityProviderId)
-                .FirstOrDefaultAsync();
-            return Redirect(
-                $"{State.RedirectUri}" +
-                $"?code={code}" +
-                $"&scope={scope}" +
-                $"&response_type=code" +
-                $"&redirect_uri={HttpUtility.UrlEncode("https://localhost:8081/auth/callback")}" +
-                $"&state={HttpUtility.UrlEncode(state)}"
-             );
+            try
+            {
+                // Stateをアンシールして情報を取得
+                var password = Environment.GetEnvironmentVariable("STATE_PASSWORD");
+                var options = new Iron.Options();
+                var stateData = await Iron.Unseal<State>(state, password, options);
+                
+                // OpenIdProviderの情報を取得
+                var openIdProvider = await _context.OpenIdProviders
+                    .Include(p => p.Client)
+                        .ThenInclude(c => c.Organization)
+                    .Where(p => p.Id == stateData.OpenIdProviderId)
+                    .FirstOrDefaultAsync();
+
+                if (openIdProvider == null)
+                {
+                    _logger.LogError("OpenIdProvider not found for ID: {ProviderId}", stateData.OpenIdProviderId);
+                    return BadRequest("Invalid state");
+                }
+
+                // 外部IdPからユーザー情報を取得（現在はモック実装）
+                var externalIdpService = HttpContext.RequestServices.GetRequiredService<IExternalIdpService>();
+                var externalUserInfo = await externalIdpService.GetExternalUserInfoAsync(
+                    openIdProvider.Name,
+                    code,
+                    openIdProvider.IdpClientId,
+                    openIdProvider.IdpClientSecret
+                );
+
+                if (externalUserInfo == null)
+                {
+                    _logger.LogError("Failed to get user info from external IdP: {Provider}", openIdProvider.Name);
+                    return Redirect($"{stateData.RedirectUri}?error=access_denied&error_description=Failed+to+authenticate+with+external+provider");
+                }
+
+                // OrganizationIdの検証
+                if (!openIdProvider.Client.OrganizationId.HasValue)
+                {
+                    _logger.LogError("Client {ClientId} does not have an OrganizationId", openIdProvider.ClientId);
+                    return BadRequest("Client configuration error");
+                }
+
+                // EcAuthユーザーを取得または作成（JITプロビジョニング）
+                var userCreationRequest = new UserCreationRequest
+                {
+                    ExternalProvider = openIdProvider.Name,
+                    ExternalSubject = externalUserInfo.Subject,
+                    Email = externalUserInfo.Email,
+                    OrganizationId = openIdProvider.Client.OrganizationId.Value
+                };
+
+                var ecAuthUser = await _userService.GetOrCreateUserAsync(userCreationRequest);
+
+                // EcAuth用の認可コードを生成
+                var authCodeService = HttpContext.RequestServices.GetRequiredService<IAuthorizationCodeService>();
+                var authorizationCode = await authCodeService.GenerateAuthorizationCodeAsync(
+                    openIdProvider.Client.Id,
+                    ecAuthUser.Id,
+                    stateData.RedirectUri,
+                    scope
+                );
+
+                _logger.LogInformation("Generated authorization code for user {UserId} and client {ClientId}", 
+                    ecAuthUser.Id, openIdProvider.ClientId);
+
+                // クライアントにリダイレクト（EcAuthの認可コードを付与）
+                return Redirect(
+                    $"{stateData.RedirectUri}" +
+                    $"?code={authorizationCode}" +
+                    $"&state={HttpUtility.UrlEncode(state)}"
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing authorization callback");
+                return StatusCode(500, "Internal server error");
+            }
         }
     }
 }
