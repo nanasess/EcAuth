@@ -42,4 +42,4 @@ npx playwright test
 
 ## 詳細情報
 
-詳細なアーキテクチャ情報や開発ガイドラインは `../EcAuthDocs/CLAUDE.md` を参照してください。
+詳細なアーキテクチャ情報や開発ガイドラインは @EcAuthDocs/CLAUDE.md を参照してください。
