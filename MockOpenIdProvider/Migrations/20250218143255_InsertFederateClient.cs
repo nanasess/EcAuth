@@ -27,42 +27,40 @@ namespace MockOpenIdProvider.Migrations
             var privateKey = rsa.ExportRSAPrivateKeyPem();
             var publicKey = rsa.ExportRSAPublicKeyPem();
 
-            // クライアントの挿入（パラメータ化クエリ）
-            migrationBuilder.Sql(@"
+            // クライアントの挿入
+            migrationBuilder.Sql($@"
                 INSERT INTO client (
                     client_id, client_secret, client_name, redirect_uri, public_key, private_key
                 )
-                VALUES (@p0, @p1, @p2, @p3, @p4, @p5)",
-                MOCK_IDP_FEDERATE_CLIENT_ID,
-                MOCK_IDP_FEDERATE_CLIENT_SECRET,
-                MOCK_IDP_FEDERATE_CLIENT_NAME,
-                DEFAULT_ORGANIZATION_REDIRECT_URI,
-                publicKey,
-                privateKey
-            );
+                VALUES (
+                    '{MOCK_IDP_FEDERATE_CLIENT_ID}',
+                    '{MOCK_IDP_FEDERATE_CLIENT_SECRET}',
+                    '{MOCK_IDP_FEDERATE_CLIENT_NAME}',
+                    '{DEFAULT_ORGANIZATION_REDIRECT_URI}',
+                    '{publicKey}',
+                    '{privateKey}'
+                )
+            ");
 
             // パスワードをハッシュ化
             PasswordHasher<MockIdpUser> passwordHasher = new PasswordHasher<MockIdpUser>();
             var tempUser = new MockIdpUser { Email = MOCK_IDP_FEDERATE_USER_EMAIL };
             var hashedPassword = passwordHasher.HashPassword(tempUser, MOCK_IDP_DEFAULT_USER_PASSWORD);
 
-            // ユーザーの挿入（パラメータ化クエリ）
-            migrationBuilder.Sql(@"
+            // ユーザーの挿入
+            migrationBuilder.Sql($@"
                 INSERT INTO mock_idp_user (
                     email, password, created_at, updated_at, client_id
                 )
                 SELECT 
-                    @p0,
-                    @p1,
+                    '{MOCK_IDP_FEDERATE_USER_EMAIL}',
+                    '{hashedPassword}',
                     SYSDATETIMEOFFSET(),
                     SYSDATETIMEOFFSET(),
                     c.id
                 FROM client c
-                WHERE c.client_id = @p2",
-                MOCK_IDP_FEDERATE_USER_EMAIL,
-                hashedPassword,
-                MOCK_IDP_FEDERATE_CLIENT_ID
-            );
+                WHERE c.client_id = '{MOCK_IDP_FEDERATE_CLIENT_ID}'
+            ");
         }
 
         /// <inheritdoc />
@@ -73,18 +71,15 @@ namespace MockOpenIdProvider.Migrations
             var MOCK_IDP_FEDERATE_USER_EMAIL = DotNetEnv.Env.GetString("MOCK_IDP_FEDERATE_USER_EMAIL");
             var MOCK_IDP_FEDERATE_CLIENT_ID = DotNetEnv.Env.GetString("MOCK_IDP_FEDERATE_CLIENT_ID");
 
-            // パラメータ化クエリで削除
-            migrationBuilder.Sql(@"
+            migrationBuilder.Sql($@"
                 DELETE FROM mock_idp_user 
-                WHERE email = @p0",
-                MOCK_IDP_FEDERATE_USER_EMAIL
-            );
+                WHERE email = '{MOCK_IDP_FEDERATE_USER_EMAIL}'
+            ");
 
-            migrationBuilder.Sql(@"
+            migrationBuilder.Sql($@"
                 DELETE FROM client 
-                WHERE client_id = @p0",
-                MOCK_IDP_FEDERATE_CLIENT_ID
-            );
+                WHERE client_id = '{MOCK_IDP_FEDERATE_CLIENT_ID}'
+            ");
         }
     }
 }

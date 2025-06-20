@@ -24,18 +24,18 @@ namespace IdentityProvider.Migrations
             var AMAZON_OAUTH2_USERINFO_ENDPOINT = DotNetEnv.Env.GetString("AMAZON_OAUTH2_USERINFO_ENDPOINT");
             var DEFAULT_CLIENT_ID = DotNetEnv.Env.GetString("DEFAULT_CLIENT_ID");
 
-            // Google OAuth2 プロバイダーの挿入（パラメータ化クエリ）
-            migrationBuilder.Sql(@"
+            // Google OAuth2 プロバイダーの挿入
+            migrationBuilder.Sql($@"
                 INSERT INTO open_id_provider (
                     name, idp_client_id, idp_client_secret, discovery_document_uri, 
                     issuer, authorization_endpoint, token_endpoint, userinfo_endpoint, 
                     jwks_uri, created_at, updated_at, client_id
                 )
                 SELECT 
-                    @p0,
-                    @p1,
-                    @p2,
-                    @p3,
+                    '{GOOGLE_OAUTH2_APP_NAME}',
+                    '{GOOGLE_OAUTH2_CLIENT_ID}',
+                    '{GOOGLE_OAUTH2_CLIENT_SECRET}',
+                    '{GOOGLE_OAUTH2_DISCOVERY_URL}',
                     'https://accounts.google.com',
                     'https://accounts.google.com/o/oauth2/v2/auth',
                     'https://oauth2.googleapis.com/token',
@@ -45,41 +45,29 @@ namespace IdentityProvider.Migrations
                     SYSDATETIMEOFFSET(),
                     c.id
                 FROM client c
-                WHERE c.client_id = @p4",
-                GOOGLE_OAUTH2_APP_NAME,
-                GOOGLE_OAUTH2_CLIENT_ID,
-                GOOGLE_OAUTH2_CLIENT_SECRET,
-                GOOGLE_OAUTH2_DISCOVERY_URL,
-                DEFAULT_CLIENT_ID
-            );
+                WHERE c.client_id = '{DEFAULT_CLIENT_ID}'
+            ");
 
-            // Amazon OAuth2 プロバイダーの挿入（パラメータ化クエリ）
-            migrationBuilder.Sql(@"
+            // Amazon OAuth2 プロバイダーの挿入
+            migrationBuilder.Sql($@"
                 INSERT INTO open_id_provider (
                     name, idp_client_id, idp_client_secret, 
                     authorization_endpoint, token_endpoint, userinfo_endpoint, 
                     created_at, updated_at, client_id
                 )
                 SELECT 
-                    @p0,
-                    @p1,
-                    @p2,
-                    @p3,
-                    @p4,
-                    @p5,
+                    '{AMAZON_OAUTH2_APP_NAME}',
+                    '{AMAZON_OAUTH2_CLIENT_ID}',
+                    '{AMAZON_OAUTH2_CLIENT_SECRET}',
+                    '{AMAZON_OAUTH2_AUTHORIZATION_ENDPOINT}',
+                    '{AMAZON_OAUTH2_TOKEN_ENDPOINT}',
+                    '{AMAZON_OAUTH2_USERINFO_ENDPOINT}',
                     SYSDATETIMEOFFSET(),
                     SYSDATETIMEOFFSET(),
                     c.id
                 FROM client c
-                WHERE c.client_id = @p6",
-                AMAZON_OAUTH2_APP_NAME,
-                AMAZON_OAUTH2_CLIENT_ID,
-                AMAZON_OAUTH2_CLIENT_SECRET,
-                AMAZON_OAUTH2_AUTHORIZATION_ENDPOINT,
-                AMAZON_OAUTH2_TOKEN_ENDPOINT,
-                AMAZON_OAUTH2_USERINFO_ENDPOINT,
-                DEFAULT_CLIENT_ID
-            );
+                WHERE c.client_id = '{DEFAULT_CLIENT_ID}'
+            ");
         }
 
         /// <inheritdoc />

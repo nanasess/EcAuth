@@ -23,23 +23,20 @@ namespace MockOpenIdProvider.Migrations
             var tempUser = new MockIdpUser { Email = MOCK_IDP_DEFAULT_USER_EMAIL };
             var hashedPassword = passwordHasher.HashPassword(tempUser, MOCK_IDP_DEFAULT_USER_PASSWORD);
 
-            // ユーザーの挿入（パラメータ化クエリ）
-            migrationBuilder.Sql(@"
+            // ユーザーの挿入
+            migrationBuilder.Sql($@"
                 INSERT INTO mock_idp_user (
                     email, password, created_at, updated_at, client_id
                 )
                 SELECT 
-                    @p0,
-                    @p1,
+                    '{MOCK_IDP_DEFAULT_USER_EMAIL}',
+                    '{hashedPassword}',
                     SYSDATETIMEOFFSET(),
                     SYSDATETIMEOFFSET(),
                     c.id
                 FROM client c
-                WHERE c.client_id = @p2",
-                MOCK_IDP_DEFAULT_USER_EMAIL,
-                hashedPassword,
-                MOCK_IDP_DEFAULT_CLIENT_ID
-            );
+                WHERE c.client_id = '{MOCK_IDP_DEFAULT_CLIENT_ID}'
+            ");
         }
 
         /// <inheritdoc />
