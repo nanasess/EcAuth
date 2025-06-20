@@ -26,7 +26,7 @@ namespace MockOpenIdProvider.Migrations
             // ユーザーの挿入
             migrationBuilder.Sql($@"
                 INSERT INTO mock_idp_user (
-                    email, password, created_at, updated_at, client_id
+                    email, password, created_at, updated_at, ClientId
                 )
                 SELECT 
                     '{MOCK_IDP_DEFAULT_USER_EMAIL}',
