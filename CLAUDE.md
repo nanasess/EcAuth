@@ -17,6 +17,7 @@ Claude Code Actions の制限で `working_directory` を変更できないため
 - コード関連の作業はこのリポジトリで実行
 - 両リポジトリ間の整合性を保つ
 - 日本語で回答してください
+- 起動時に EcAuthDocs の内容を最新の main ブランチに更新してください
 
 ## 概要
 
