@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore.Migrations;
-using IdpUtilities.Migrations;
 using MockOpenIdProvider.Models;
 
 #nullable disable
@@ -13,45 +12,31 @@ namespace MockOpenIdProvider.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            // 環境変数から値を取得
             DotNetEnv.Env.TraversePath().Load();
-            var MIGRATION_DB_HOST = DotNetEnv.Env.GetString("MIGRATION_DB_HOST");
-            var DB_NAME = DotNetEnv.Env.GetString("MOCK_IDP_DB_NAME");
-            var DB_USER = DotNetEnv.Env.GetString("DB_USER");
-            var DB_PASSWORD = DotNetEnv.Env.GetString("DB_PASSWORD");
-            var clientId = DotNetEnv.Env.GetString("DEFAULT_CLIENT_ID");
-            using (var scope = MigrationServiceProviderFactory<IdpDbContext>.CreateMigrationServiceProvider(
-                $"Server={MIGRATION_DB_HOST};Database={DB_NAME};User Id={DB_USER};Password={DB_PASSWORD};TrustServerCertificate=true;MultipleActiveResultSets=true"
-                ).BuildServiceProvider().CreateScope())
-            {
-                var CLIENT_ID = DotNetEnv.Env.GetString("MOCK_IDP_DEFAULT_CLIENT_ID");
-                var _context = scope.ServiceProvider.GetRequiredService<IdpDbContext>();
-                var Client = _context.Clients.FirstOrDefault(c => c.ClientId == CLIENT_ID);
-                PasswordHasher<MockIdpUser> passwordHasher = new PasswordHasher<MockIdpUser>();
-                var user = new MockIdpUser
-                {
-                    Email = DotNetEnv.Env.GetString("MOCK_IDP_DEFAULT_USER_EMAIL"),
-                    Password = string.Empty,
-                    CreatedAt = DateTimeOffset.Now,
-                    UpdatedAt = DateTimeOffset.Now,
-                    ClientId = Client.Id,
-                    Client = Client
-                };
-                var password = DotNetEnv.Env.GetString("MOCK_IDP_DEFAULT_USER_PASSWORD");
-                user.Password = passwordHasher.HashPassword(user, password);
-                Console.WriteLine($"Hashed password: {user.Password}");
-                _context.Users.Add(user);
-                _context.SaveChanges();
+            var MOCK_IDP_DEFAULT_CLIENT_ID = DotNetEnv.Env.GetString("MOCK_IDP_DEFAULT_CLIENT_ID");
+            var MOCK_IDP_DEFAULT_USER_EMAIL = DotNetEnv.Env.GetString("MOCK_IDP_DEFAULT_USER_EMAIL");
+            var MOCK_IDP_DEFAULT_USER_PASSWORD = DotNetEnv.Env.GetString("MOCK_IDP_DEFAULT_USER_PASSWORD");
 
-                var validation = passwordHasher.VerifyHashedPassword(user, user.Password, password);
-                if (validation == PasswordVerificationResult.Failed)
-                {
-                    throw new Exception("Password validation failed");
-                }
-                else
-                {
-                    Console.WriteLine($"Password validation: {validation}");;
-                }
-            }
+            // パスワードをハッシュ化
+            PasswordHasher<MockIdpUser> passwordHasher = new PasswordHasher<MockIdpUser>();
+            var tempUser = new MockIdpUser { Email = MOCK_IDP_DEFAULT_USER_EMAIL };
+            var hashedPassword = passwordHasher.HashPassword(tempUser, MOCK_IDP_DEFAULT_USER_PASSWORD);
+
+            // ユーザーの挿入
+            migrationBuilder.Sql($@"
+                INSERT INTO mock_idp_user (
+                    email, password, created_at, updated_at, ClientId
+                )
+                SELECT 
+                    '{MOCK_IDP_DEFAULT_USER_EMAIL}',
+                    '{hashedPassword}',
+                    SYSDATETIMEOFFSET(),
+                    SYSDATETIMEOFFSET(),
+                    c.id
+                FROM client c
+                WHERE c.client_id = '{MOCK_IDP_DEFAULT_CLIENT_ID}'
+            ");
         }
 
         /// <inheritdoc />
