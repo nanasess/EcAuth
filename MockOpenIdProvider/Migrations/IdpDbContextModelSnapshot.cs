@@ -17,7 +17,7 @@ namespace MockOpenIdProvider.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.13")
+                .HasAnnotation("ProductVersion", "9.0.4")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -58,7 +58,7 @@ namespace MockOpenIdProvider.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("access_token");
+                    b.ToTable("access_token", (string)null);
                 });
 
             modelBuilder.Entity("MockOpenIdProvider.Models.AuthorizationCode", b =>
@@ -101,7 +101,7 @@ namespace MockOpenIdProvider.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("authorization_code");
+                    b.ToTable("authorization_code", (string)null);
                 });
 
             modelBuilder.Entity("MockOpenIdProvider.Models.Client", b =>
@@ -145,7 +145,7 @@ namespace MockOpenIdProvider.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("client");
+                    b.ToTable("client", (string)null);
                 });
 
             modelBuilder.Entity("MockOpenIdProvider.Models.MockIdpUser", b =>
@@ -182,7 +182,7 @@ namespace MockOpenIdProvider.Migrations
 
                     b.HasIndex("ClientId");
 
-                    b.ToTable("mock_idp_user");
+                    b.ToTable("mock_idp_user", (string)null);
                 });
 
             modelBuilder.Entity("MockOpenIdProvider.Models.RefreshToken", b =>
@@ -221,7 +221,7 @@ namespace MockOpenIdProvider.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("refresh_token");
+                    b.ToTable("refresh_token", (string)null);
                 });
 
             modelBuilder.Entity("MockOpenIdProvider.Models.AccessToken", b =>

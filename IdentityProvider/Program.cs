@@ -16,7 +16,15 @@ builder.Services.AddHttpClient();
 builder.Services.AddDbContext<EcAuthDbContext>((sp, options) =>
 {
     var tenantService = sp.GetRequiredService<ITenantService>();
-    options.UseSqlServer(builder.Configuration["ConnectionStrings:EcAuthDbContext"]);
+    options.UseSqlServer(
+        builder.Configuration["ConnectionStrings:EcAuthDbContext"],
+        sqlOptions => sqlOptions.CommandTimeout(180) // タイムアウトを3分に設定
+    );
+
+    // EF Core 9のマイグレーション時の自動トランザクション管理警告を無視
+    // 参照: https://learn.microsoft.com/en-us/ef/core/what-is-new/ef-core-9.0/breaking-changes
+    // これにより、マイグレーション内でDbContextを作成する既存のパターンが動作します
+    options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.MigrationsUserTransactionWarning));
 });
 builder.Services.AddControllers();
 builder.Services.AddMvc();
