@@ -20,12 +20,56 @@ namespace IdentityProvider.Models
         public DbSet<RedirectUri> RedirectUris { get; set; }
         public DbSet<OpenIdProvider> OpenIdProviders { get; set; }
         public DbSet<OpenIdProviderScope> OpenIdProviderScopes { get; set; }
+        public DbSet<EcAuthUser> EcAuthUsers { get; set; }
+        public DbSet<ExternalIdpMapping> ExternalIdpMappings { get; set; }
+        public DbSet<AuthorizationCode> AuthorizationCodes { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // 組織エンティティにテナントフィルターを適用
             modelBuilder.Entity<Organization>()
                 .HasQueryFilter(o => o.TenantName == _tenantService.TenantName);
+
+            // EcAuthUser関連の設定
+            modelBuilder.Entity<EcAuthUser>()
+                .HasOne(u => u.Organization)
+                .WithMany()
+                .HasForeignKey(u => u.OrganizationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<EcAuthUser>()
+                .HasMany(u => u.ExternalIdpMappings)
+                .WithOne(m => m.EcAuthUser)
+                .HasForeignKey(m => m.EcAuthSubject)
+                .HasPrincipalKey(u => u.Subject)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<EcAuthUser>()
+                .HasMany(u => u.AuthorizationCodes)
+                .WithOne(ac => ac.EcAuthUser)
+                .HasForeignKey(ac => ac.EcAuthSubject)
+                .HasPrincipalKey(u => u.Subject)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // AuthorizationCode関連の設定
+            modelBuilder.Entity<AuthorizationCode>()
+                .HasOne(ac => ac.Client)
+                .WithMany()
+                .HasForeignKey(ac => ac.ClientId)
+                .HasPrincipalKey(c => c.ClientId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // インデックスの設定
+            modelBuilder.Entity<EcAuthUser>()
+                .HasIndex(u => u.EmailHash)
+                .IsUnique();
+
+            modelBuilder.Entity<ExternalIdpMapping>()
+                .HasIndex(m => new { m.ExternalProvider, m.ExternalSubject })
+                .IsUnique();
+
+            modelBuilder.Entity<AuthorizationCode>()
+                .HasIndex(ac => ac.ExpiresAt);
 
             base.OnModelCreating(modelBuilder);
         }

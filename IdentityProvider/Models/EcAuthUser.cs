@@ -1,0 +1,34 @@
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace IdentityProvider.Models
+{
+    [Table("ecauth_user")]
+    public class EcAuthUser
+    {
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.None)]
+        [Column("subject")]
+        [MaxLength(255)]
+        public string Subject { get; set; } = string.Empty;
+
+        [Column("email_hash")]
+        [MaxLength(255)]
+        [Required]
+        public string EmailHash { get; set; } = string.Empty;
+
+        [Column("organization_id")]
+        [Required]
+        public int OrganizationId { get; set; }
+
+        [Column("created_at")]
+        public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+
+        [Column("updated_at")]
+        public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+
+        public Organization? Organization { get; set; }
+        public ICollection<ExternalIdpMapping> ExternalIdpMappings { get; } = new List<ExternalIdpMapping>();
+        public ICollection<AuthorizationCode> AuthorizationCodes { get; } = new List<AuthorizationCode>();
+    }
+}
