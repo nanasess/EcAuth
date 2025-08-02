@@ -8,6 +8,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddScoped<ITenantService, TenantService>();
 builder.Services.AddScoped<OrganizationFilter>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IAuthorizationCodeService, AuthorizationCodeService>();
+builder.Services.AddScoped<IExternalIdpService, ExternalIdpService>();
+builder.Services.AddHttpClient();
 // Add services to the container.
 builder.Services.AddDbContext<EcAuthDbContext>((sp, options) =>
 {

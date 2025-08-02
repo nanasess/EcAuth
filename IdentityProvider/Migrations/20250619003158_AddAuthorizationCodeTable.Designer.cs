@@ -4,6 +4,7 @@ using IdentityProvider.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,13 +12,15 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace IdentityProvider.Migrations
 {
     [DbContext(typeof(EcAuthDbContext))]
-    partial class EcAuthDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250619003158_AddAuthorizationCodeTable")]
+    partial class AddAuthorizationCodeTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.4")
+                .HasAnnotation("ProductVersion", "8.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -51,7 +54,7 @@ namespace IdentityProvider.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("account", (string)null);
+                    b.ToTable("account");
                 });
 
             modelBuilder.Entity("IdentityProvider.Models.AuthorizationCode", b =>
@@ -148,7 +151,7 @@ namespace IdentityProvider.Migrations
 
                     b.HasIndex("OrganizationId");
 
-                    b.ToTable("client", (string)null);
+                    b.ToTable("client");
                 });
 
             modelBuilder.Entity("IdentityProvider.Models.EcAuthUser", b =>
@@ -290,7 +293,7 @@ namespace IdentityProvider.Migrations
 
                     b.HasIndex("ClientId");
 
-                    b.ToTable("open_id_provider", (string)null);
+                    b.ToTable("open_id_provider");
                 });
 
             modelBuilder.Entity("IdentityProvider.Models.OpenIdProviderScope", b =>
@@ -327,7 +330,7 @@ namespace IdentityProvider.Migrations
 
                     b.HasIndex("OpenIdProviderId");
 
-                    b.ToTable("open_id_provider_scope", (string)null);
+                    b.ToTable("open_id_provider_scope");
                 });
 
             modelBuilder.Entity("IdentityProvider.Models.Organization", b =>
@@ -363,7 +366,7 @@ namespace IdentityProvider.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("organization", (string)null);
+                    b.ToTable("organization");
                 });
 
             modelBuilder.Entity("IdentityProvider.Models.RedirectUri", b =>
@@ -396,7 +399,7 @@ namespace IdentityProvider.Migrations
 
                     b.HasIndex("ClientId");
 
-                    b.ToTable("redirect_uri", (string)null);
+                    b.ToTable("redirect_uri");
                 });
 
             modelBuilder.Entity("IdentityProvider.Models.RsaKeyPair", b =>
@@ -427,7 +430,7 @@ namespace IdentityProvider.Migrations
                     b.HasIndex("ClientId")
                         .IsUnique();
 
-                    b.ToTable("rsa_key_pair", (string)null);
+                    b.ToTable("rsa_key_pair");
                 });
 
             modelBuilder.Entity("IdentityProvider.Models.AuthorizationCode", b =>

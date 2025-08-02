@@ -20,6 +20,9 @@ namespace IdentityProvider.Models
         public DbSet<RedirectUri> RedirectUris { get; set; }
         public DbSet<OpenIdProvider> OpenIdProviders { get; set; }
         public DbSet<OpenIdProviderScope> OpenIdProviderScopes { get; set; }
+        public DbSet<EcAuthUser> EcAuthUsers { get; set; }
+        public DbSet<ExternalIdpMapping> ExternalIdpMappings { get; set; }
+        public DbSet<AuthorizationCode> AuthorizationCodes { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
