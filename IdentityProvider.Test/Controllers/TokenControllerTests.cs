@@ -26,6 +26,7 @@ namespace IdentityProvider.Test.Controllers
         private readonly Mock<ILogger<TokenController>> _loggerMock;
         private readonly TokenController _controller;
         private readonly RsaKeyPair _testKeyPair;
+        private readonly Client _testClient;
 
         public TokenControllerTests()
         {
@@ -41,17 +42,22 @@ namespace IdentityProvider.Test.Controllers
             _userServiceMock = new Mock<IUserService>();
             _loggerMock = new Mock<ILogger<TokenController>>();
 
-            // Create test RSA key pair
+            // Create test client and RSA key pair
+            _testClient = new Client
+            {
+                ClientId = "test-client",
+                ClientSecret = "test-secret",
+                AppName = "Test App"
+            };
+            
             _testKeyPair = new RsaKeyPair
             {
-                Id = Guid.NewGuid(),
-                KeyId = "test-key-id",
                 PublicKey = GenerateTestPublicKey(),
                 PrivateKey = GenerateTestPrivateKey(),
-                CreatedAt = DateTime.UtcNow,
-                ExpiresAt = DateTime.UtcNow.AddYears(1),
-                IsActive = true
+                Client = _testClient
             };
+            
+            _testClient.RsaKeyPair = _testKeyPair;
 
             // Setup test data
             SetupTestData();
@@ -79,7 +85,8 @@ namespace IdentityProvider.Test.Controllers
 
         private void SetupTestData()
         {
-            // Add test key pair
+            // Add test client and key pair
+            _context.Clients.Add(_testClient);
             _context.RsaKeyPairs.Add(_testKeyPair);
 
             // Add test organization
