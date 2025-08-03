@@ -63,8 +63,8 @@ namespace IdentityProvider.Migrations
 
                     b.Property<string>("ClientId")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)")
                         .HasColumnName("client_id");
 
                     b.Property<DateTimeOffset>("CreatedAt")

@@ -18,7 +18,6 @@ namespace IdentityProvider.Models
         public string EcAuthSubject { get; set; } = string.Empty;
 
         [Column("client_id")]
-        [MaxLength(255)]
         [Required]
         public string ClientId { get; set; } = string.Empty;
 

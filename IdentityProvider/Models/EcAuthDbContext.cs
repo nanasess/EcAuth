@@ -53,6 +53,10 @@ namespace IdentityProvider.Models
 
             // AuthorizationCode関連の設定
             modelBuilder.Entity<AuthorizationCode>()
+                .Property(ac => ac.ClientId)
+                .HasMaxLength(450);
+
+            modelBuilder.Entity<AuthorizationCode>()
                 .HasOne(ac => ac.Client)
                 .WithMany()
                 .HasForeignKey(ac => ac.ClientId)
