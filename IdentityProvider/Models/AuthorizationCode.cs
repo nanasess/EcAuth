@@ -19,7 +19,7 @@ namespace IdentityProvider.Models
 
         [Column("client_id")]
         [Required]
-        public string ClientId { get; set; } = string.Empty;
+        public int ClientId { get; set; }
 
         [Column("redirect_uri")]
         [MaxLength(2000)]

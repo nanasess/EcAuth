@@ -30,6 +30,18 @@ namespace IdentityProvider.Models
             modelBuilder.Entity<Organization>()
                 .HasQueryFilter(o => o.TenantName == _tenantService.TenantName);
 
+            // EcAuthUserにも同じグローバルクエリフィルターを適用
+            modelBuilder.Entity<EcAuthUser>()
+                .HasQueryFilter(u => u.Organization != null && u.Organization.TenantName == _tenantService.TenantName);
+
+            // ExternalIdpMappingにもグローバルクエリフィルターを適用
+            modelBuilder.Entity<ExternalIdpMapping>()
+                .HasQueryFilter(m => m.EcAuthUser != null && m.EcAuthUser.Organization != null && m.EcAuthUser.Organization.TenantName == _tenantService.TenantName);
+
+            // AuthorizationCodeにもグローバルクエリフィルターを適用
+            modelBuilder.Entity<AuthorizationCode>()
+                .HasQueryFilter(ac => ac.EcAuthUser != null && ac.EcAuthUser.Organization != null && ac.EcAuthUser.Organization.TenantName == _tenantService.TenantName);
+
             // EcAuthUser関連の設定
             modelBuilder.Entity<EcAuthUser>()
                 .HasOne(u => u.Organization)
@@ -53,14 +65,9 @@ namespace IdentityProvider.Models
 
             // AuthorizationCode関連の設定
             modelBuilder.Entity<AuthorizationCode>()
-                .Property(ac => ac.ClientId)
-                .HasMaxLength(450);
-
-            modelBuilder.Entity<AuthorizationCode>()
                 .HasOne(ac => ac.Client)
                 .WithMany()
                 .HasForeignKey(ac => ac.ClientId)
-                .HasPrincipalKey(c => c.ClientId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             // インデックスの設定
