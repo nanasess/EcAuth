@@ -11,7 +11,7 @@ namespace IdentityProvider.Test.Models
 
             Assert.Equal(string.Empty, authCode.Code);
             Assert.Equal(string.Empty, authCode.EcAuthSubject);
-            Assert.Equal(string.Empty, authCode.ClientId);
+            Assert.Equal(0, authCode.ClientId);
             Assert.Equal(string.Empty, authCode.RedirectUri);
             Assert.Null(authCode.Scope);
             Assert.Null(authCode.State);
@@ -28,7 +28,7 @@ namespace IdentityProvider.Test.Models
         {
             var code = "test-auth-code-123";
             var subject = "test-subject";
-            var clientId = "test-client";
+            var clientId = 1;
             var redirectUri = "https://example.com/callback";
             var scope = "openid profile";
             var state = "test-state";
@@ -134,11 +134,12 @@ namespace IdentityProvider.Test.Models
         public void AuthorizationCode_Relations_ShouldWork()
         {
             var user = new EcAuthUser { Subject = "test-subject" };
-            var client = new Client { ClientId = "test-client" };
+            var client = new Client { Id = 1, ClientId = "test-client" };
             var authCode = new AuthorizationCode 
             { 
                 EcAuthUser = user,
-                Client = client
+                Client = client,
+                ClientId = 1
             };
             
             Assert.Equal(user, authCode.EcAuthUser);
