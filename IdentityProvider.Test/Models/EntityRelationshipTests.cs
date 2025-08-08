@@ -115,7 +115,7 @@ namespace IdentityProvider.Test.Models
             {
                 Code = "auth-code-123",
                 EcAuthSubject = user.Subject,
-                ClientId = client.ClientId,
+                ClientId = client.Id,
                 RedirectUri = "https://example.com/callback",
                 ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(10),
                 EcAuthUser = user,
