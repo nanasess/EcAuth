@@ -51,7 +51,69 @@ namespace IdentityProvider.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("account", (string)null);
+                    b.ToTable("account");
+                });
+
+            modelBuilder.Entity("IdentityProvider.Models.AuthorizationCode", b =>
+                {
+                    b.Property<string>("Code")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("code");
+
+                    b.Property<string>("ClientId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)")
+                        .HasColumnName("client_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("EcAuthSubject")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("ecauth_subject");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("datetimeoffset")
+                        .HasColumnName("expires_at");
+
+                    b.Property<bool>("IsUsed")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_used");
+
+                    b.Property<string>("RedirectUri")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("redirect_uri");
+
+                    b.Property<string>("Scope")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("scope");
+
+                    b.Property<string>("State")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("state");
+
+                    b.Property<DateTimeOffset?>("UsedAt")
+                        .HasColumnType("datetimeoffset")
+                        .HasColumnName("used_at");
+
+                    b.HasKey("Code");
+
+                    b.HasIndex("ClientId");
+
+                    b.HasIndex("EcAuthSubject");
+
+                    b.HasIndex("ExpiresAt");
+
+                    b.ToTable("authorization_code");
                 });
 
             modelBuilder.Entity("IdentityProvider.Models.Client", b =>
@@ -70,7 +132,7 @@ namespace IdentityProvider.Migrations
 
                     b.Property<string>("ClientId")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)")
+                        .HasColumnType("nvarchar(450)")
                         .HasColumnName("client_id");
 
                     b.Property<string>("ClientSecret")
@@ -94,7 +156,83 @@ namespace IdentityProvider.Migrations
 
                     b.HasIndex("OrganizationId");
 
-                    b.ToTable("client", (string)null);
+                    b.ToTable("client");
+                });
+
+            modelBuilder.Entity("IdentityProvider.Models.EcAuthUser", b =>
+                {
+                    b.Property<string>("Subject")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("subject");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("EmailHash")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("email_hash");
+
+                    b.Property<int>("OrganizationId")
+                        .HasColumnType("int")
+                        .HasColumnName("organization_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Subject");
+
+                    b.HasIndex("EmailHash")
+                        .IsUnique();
+
+                    b.HasIndex("OrganizationId");
+
+                    b.ToTable("ecauth_user");
+                });
+
+            modelBuilder.Entity("IdentityProvider.Models.ExternalIdpMapping", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("EcAuthSubject")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("ecauth_subject");
+
+                    b.Property<string>("ExternalProvider")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("external_provider");
+
+                    b.Property<string>("ExternalSubject")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("external_subject");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EcAuthSubject");
+
+                    b.HasIndex("ExternalProvider", "ExternalSubject")
+                        .IsUnique();
+
+                    b.ToTable("external_idp_mapping");
                 });
 
             modelBuilder.Entity("IdentityProvider.Models.OpenIdProvider", b =>
@@ -161,7 +299,7 @@ namespace IdentityProvider.Migrations
 
                     b.HasIndex("ClientId");
 
-                    b.ToTable("open_id_provider", (string)null);
+                    b.ToTable("open_id_provider");
                 });
 
             modelBuilder.Entity("IdentityProvider.Models.OpenIdProviderScope", b =>
@@ -198,7 +336,7 @@ namespace IdentityProvider.Migrations
 
                     b.HasIndex("OpenIdProviderId");
 
-                    b.ToTable("open_id_provider_scope", (string)null);
+                    b.ToTable("open_id_provider_scope");
                 });
 
             modelBuilder.Entity("IdentityProvider.Models.Organization", b =>
@@ -234,7 +372,7 @@ namespace IdentityProvider.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("organization", (string)null);
+                    b.ToTable("organization");
                 });
 
             modelBuilder.Entity("IdentityProvider.Models.RedirectUri", b =>
@@ -267,7 +405,7 @@ namespace IdentityProvider.Migrations
 
                     b.HasIndex("ClientId");
 
-                    b.ToTable("redirect_uri", (string)null);
+                    b.ToTable("redirect_uri");
                 });
 
             modelBuilder.Entity("IdentityProvider.Models.RsaKeyPair", b =>
@@ -298,7 +436,27 @@ namespace IdentityProvider.Migrations
                     b.HasIndex("ClientId")
                         .IsUnique();
 
-                    b.ToTable("rsa_key_pair", (string)null);
+                    b.ToTable("rsa_key_pair");
+                });
+
+            modelBuilder.Entity("IdentityProvider.Models.AuthorizationCode", b =>
+                {
+                    b.HasOne("IdentityProvider.Models.Client", "Client")
+                        .WithMany()
+                        .HasForeignKey("ClientId")
+                        .HasPrincipalKey("ClientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("IdentityProvider.Models.EcAuthUser", "EcAuthUser")
+                        .WithMany("AuthorizationCodes")
+                        .HasForeignKey("EcAuthSubject")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Client");
+
+                    b.Navigation("EcAuthUser");
                 });
 
             modelBuilder.Entity("IdentityProvider.Models.Client", b =>
@@ -308,6 +466,28 @@ namespace IdentityProvider.Migrations
                         .HasForeignKey("OrganizationId");
 
                     b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("IdentityProvider.Models.EcAuthUser", b =>
+                {
+                    b.HasOne("IdentityProvider.Models.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Organization");
+                });
+
+            modelBuilder.Entity("IdentityProvider.Models.ExternalIdpMapping", b =>
+                {
+                    b.HasOne("IdentityProvider.Models.EcAuthUser", "EcAuthUser")
+                        .WithMany("ExternalIdpMappings")
+                        .HasForeignKey("EcAuthSubject")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("EcAuthUser");
                 });
 
             modelBuilder.Entity("IdentityProvider.Models.OpenIdProvider", b =>
@@ -359,6 +539,13 @@ namespace IdentityProvider.Migrations
                     b.Navigation("RedirectUris");
 
                     b.Navigation("RsaKeyPair");
+                });
+
+            modelBuilder.Entity("IdentityProvider.Models.EcAuthUser", b =>
+                {
+                    b.Navigation("AuthorizationCodes");
+
+                    b.Navigation("ExternalIdpMappings");
                 });
 
             modelBuilder.Entity("IdentityProvider.Models.OpenIdProvider", b =>
