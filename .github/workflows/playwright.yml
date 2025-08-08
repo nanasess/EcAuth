@@ -27,7 +27,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - run: cat .env.dist >> $GITHUB_ENV
       - run: echo "DB_HOST=localhost" >> $GITHUB_ENV
@@ -40,7 +40,7 @@ jobs:
       - run: echo "FEDERATE_OAUTH2_USERINFO_ENDPOINT=https://localhost:9091/userinfo" >> $GITHUB_ENV
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v1
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
       - name: Restore .NET tools
@@ -79,7 +79,7 @@ jobs:
           ASPNETCORE_ENVIRONMENT: Development
 
       - name: Install Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
           node-version: 22
 
