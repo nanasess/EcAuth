@@ -72,7 +72,7 @@ namespace IdentityProvider.Models
 
             // インデックスの設定
             modelBuilder.Entity<EcAuthUser>()
-                .HasIndex(u => u.EmailHash)
+                .HasIndex(u => new { u.OrganizationId, u.EmailHash })
                 .IsUnique();
 
             modelBuilder.Entity<ExternalIdpMapping>()
