@@ -56,6 +56,7 @@ jobs:
           direct_prompt: |
             Please review this pull request and provide feedback on:
             - 日本語で回答してください
+            - テストが失敗している場合はマージを推奨しないでください
             - Code quality and best practices
             - Potential bugs or issues
             - Performance considerations
