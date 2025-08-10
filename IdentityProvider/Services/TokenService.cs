@@ -49,49 +49,65 @@ namespace IdentityProvider.Services
             if (rsaKeyPair == null)
                 throw new InvalidOperationException($"RSA key pair not found for client {request.Client.Id}");
 
-            using var rsa = RSA.Create();
-            rsa.ImportRSAPrivateKey(Convert.FromBase64String(rsaKeyPair.PrivateKey), out _);
-
-            var signingCredentials = new SigningCredentials(new RsaSecurityKey(rsa), SecurityAlgorithms.RsaSha256);
-
-            var now = DateTimeOffset.UtcNow;
-            var expires = now.AddHours(1);
-
-            var claims = new List<Claim>
+            using (var rsa = RSA.Create())
             {
-                new(JwtRegisteredClaimNames.Sub, request.User.Subject),
-                new(JwtRegisteredClaimNames.Iss, GetIssuer()),
-                new(JwtRegisteredClaimNames.Aud, request.Client.ClientId),
-                new(JwtRegisteredClaimNames.Iat, now.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
-                new(JwtRegisteredClaimNames.Exp, expires.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
-                new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-            };
+                try
+                {
+                    rsa.ImportRSAPrivateKey(Convert.FromBase64String(rsaKeyPair.PrivateKey), out _);
+                }
+                catch (Exception ex)
+                {
+                    throw new InvalidOperationException($"Failed to import RSA private key for client {request.Client.Id}: {ex.Message}", ex);
+                }
 
-            // nonceが指定されている場合は追加
-            if (!string.IsNullOrEmpty(request.Nonce))
-            {
-                claims.Add(new Claim(JwtRegisteredClaimNames.Nonce, request.Nonce));
+                var signingCredentials = new SigningCredentials(new RsaSecurityKey(rsa), SecurityAlgorithms.RsaSha256)
+                {
+                    CryptoProviderFactory = new CryptoProviderFactory { CacheSignatureProviders = false }
+                };
+
+                var now = DateTime.UtcNow;
+                var expires = now.AddHours(1);
+
+                var claims = new List<Claim>
+                {
+                    new(JwtRegisteredClaimNames.Sub, request.User.Subject),
+                    new(JwtRegisteredClaimNames.Iss, GetIssuer()),
+                    new(JwtRegisteredClaimNames.Aud, request.Client.ClientId),
+                    new(JwtRegisteredClaimNames.Iat, new DateTimeOffset(now).ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
+                    new(JwtRegisteredClaimNames.Exp, new DateTimeOffset(expires).ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
+                    new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+                };
+
+                // nonceが指定されている場合は追加
+                if (!string.IsNullOrEmpty(request.Nonce))
+                {
+                    claims.Add(new Claim(JwtRegisteredClaimNames.Nonce, request.Nonce));
+                }
+
+                // 追加のクレーム（スコープに基づいて）
+                if (request.RequestedScopes?.Contains("email") == true)
+                {
+                    // メールアドレスはハッシュ化されているため、実際のメールアドレスは返さない
+                    // 必要に応じて外部IdPから取得した情報を含める実装を検討
+                    claims.Add(new Claim("email_verified", "true"));
+                }
+
+                var tokenDescriptor = new SecurityTokenDescriptor
+                {
+                    Subject = new ClaimsIdentity(claims),
+                    Expires = expires,
+                    NotBefore = now,
+                    IssuedAt = now,
+                    SigningCredentials = signingCredentials
+                };
+
+                var tokenHandler = new JwtSecurityTokenHandler();
+                var token = tokenHandler.CreateToken(tokenDescriptor);
+                var tokenString = tokenHandler.WriteToken(token);
+                
+
+                return tokenString;
             }
-
-            // 追加のクレーム（スコープに基づいて）
-            if (request.RequestedScopes?.Contains("email") == true)
-            {
-                // メールアドレスはハッシュ化されているため、実際のメールアドレスは返さない
-                // 必要に応じて外部IdPから取得した情報を含める実装を検討
-                claims.Add(new Claim("email_verified", "true"));
-            }
-
-            var tokenDescriptor = new SecurityTokenDescriptor
-            {
-                Subject = new ClaimsIdentity(claims),
-                Expires = expires.DateTime,
-                SigningCredentials = signingCredentials
-            };
-
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var token = tokenHandler.CreateToken(tokenDescriptor);
-
-            return tokenHandler.WriteToken(token);
         }
 
         public async Task<string> GenerateAccessTokenAsync(ITokenService.TokenRequest request)
@@ -128,24 +144,46 @@ namespace IdentityProvider.Services
                     return null;
                 }
 
-                using var rsa = RSA.Create();
-                rsa.ImportRSAPublicKey(Convert.FromBase64String(rsaKeyPair.PublicKey), out _);
-
-                var validationParameters = new TokenValidationParameters
+                using (var rsa = RSA.Create())
                 {
-                    ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new RsaSecurityKey(rsa),
-                    ValidateIssuer = true,
-                    ValidIssuer = GetIssuer(),
-                    ValidateAudience = false, // We'll validate audience manually later
-                    ValidateLifetime = true,
-                    ClockSkew = TimeSpan.FromMinutes(5)
-                };
+                    try
+                    {
+                        // 検証では公開鍵を使用
+                        rsa.ImportRSAPublicKey(Convert.FromBase64String(rsaKeyPair.PublicKey), out _);
+                    }
+                    catch (Exception ex)
+                    {
+                        // 公開鍵のインポートに失敗した場合、プライベートキーから公開鍵を取得
+                        try
+                        {
+                            rsa.ImportRSAPrivateKey(Convert.FromBase64String(rsaKeyPair.PrivateKey), out _);
+                        }
+                        catch (Exception ex2)
+                        {
+                            _logger.LogWarning(ex2, "Failed to import RSA keys for client {ClientId}", clientId);
+                            return null;
+                        }
+                    }
 
-                var principal = tokenHandler.ValidateToken(token, validationParameters, out SecurityToken validatedToken);
-                var subjectClaim = principal.FindFirst(JwtRegisteredClaimNames.Sub);
+                    var validationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuerSigningKey = true,
+                        IssuerSigningKey = new RsaSecurityKey(rsa),
+                        ValidateIssuer = true,
+                        ValidIssuer = GetIssuer(),
+                        ValidateAudience = false, // We'll validate audience manually later
+                        ValidateLifetime = true,
+                        ClockSkew = TimeSpan.FromMinutes(5),
+                        CryptoProviderFactory = new CryptoProviderFactory { CacheSignatureProviders = false }
+                    };
 
-                return subjectClaim?.Value;
+                    var principal = tokenHandler.ValidateToken(token, validationParameters, out SecurityToken validatedToken);
+                    var subjectClaim = principal.FindFirst(JwtRegisteredClaimNames.Sub) ?? 
+                                     principal.FindFirst("sub") ?? 
+                                     principal.FindFirst(ClaimTypes.NameIdentifier);
+
+                    return subjectClaim?.Value;
+                }
             }
             catch (Exception ex)
             {

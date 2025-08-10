@@ -333,9 +333,12 @@ namespace IdentityProvider.Test.Services
             context.EcAuthUsers.Add(user);
 
             // Generate RSA key pair for testing
-            using var rsa = RSA.Create(2048);
-            var publicKey = Convert.ToBase64String(rsa.ExportRSAPublicKey());
-            var privateKey = Convert.ToBase64String(rsa.ExportRSAPrivateKey());
+            string publicKey, privateKey;
+            using (var rsa = RSA.Create(2048))
+            {
+                publicKey = Convert.ToBase64String(rsa.ExportRSAPublicKey());
+                privateKey = Convert.ToBase64String(rsa.ExportRSAPrivateKey());
+            }
 
             var rsaKeyPair = new RsaKeyPair
             {
