@@ -47,7 +47,6 @@ namespace IdentityProvider.Controllers
                     p => p.Name == provider_name
                     && p.ClientId == Client.Id
                 ).FirstOrDefaultAsync();
-            await _context.SaveChangesAsync();
             var scopes = "openid email profile";
             if (OpenIdProvider.Name == "amazon-oauth2")
             {
