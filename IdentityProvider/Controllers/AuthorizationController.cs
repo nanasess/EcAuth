@@ -48,7 +48,19 @@ namespace IdentityProvider.Controllers
                     && p.ClientId == Client.Id
                 ).FirstOrDefaultAsync();
             await _context.SaveChangesAsync();
-            var data = new State { OpenIdProviderId = OpenIdProvider.Id, RedirectUri = redirect_uri };
+            var scopes = "openid email profile";
+            if (OpenIdProvider.Name == "amazon-oauth2")
+            {
+                scopes = "profile postal_code profile:user_id";
+            }
+            var data = new State 
+            { 
+                OpenIdProviderId = OpenIdProvider.Id, 
+                RedirectUri = redirect_uri,
+                ClientId = Client.Id,
+                OrganizationId = Client.OrganizationId ?? 0,
+                Scope = scopes
+            };
             var password = Environment.GetEnvironmentVariable("STATE_PASSWORD");
             var options = new Iron.Options();
 
@@ -56,11 +68,6 @@ namespace IdentityProvider.Controllers
             Console.WriteLine($"Sealed Data: {sealedData}");
             var unsealedData = await Iron.Unseal<State>(sealedData, password, options);
             Console.WriteLine($"Unsealed Data: {unsealedData}");
-            var scopes = "openid email profile";
-            if (OpenIdProvider.Name == "amazon-oauth2")
-            {
-                scopes = "profile postal_code profile:user_id";
-            }
             return Redirect(
                 $"{OpenIdProvider.AuthorizationEndpoint}" +
                 $"?client_id={OpenIdProvider.IdpClientId}" +
