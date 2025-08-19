@@ -41,6 +41,7 @@ namespace IdentityProvider.Controllers
         /// <param name="scope"></param>
         /// <returns></returns>
         [HttpPost]
+        [Route("exchange")]
         public async Task<IActionResult> Exchange([FromForm] string code, [FromForm] string state, [FromForm] string scope)
         {
             var password = Environment.GetEnvironmentVariable("STATE_PASSWORD");
@@ -113,24 +114,13 @@ namespace IdentityProvider.Controllers
                     });
                 }
 
-                // 2. client_idの数値変換
-                if (!int.TryParse(client_id, out int clientIdInt))
-                {
-                    _logger.LogWarning("Invalid client_id format: {ClientId}", client_id);
-                    return BadRequest(new
-                    {
-                        error = "invalid_client",
-                        error_description = "client_idの形式が正しくありません。"
-                    });
-                }
-
-                // 3. クライアントの存在確認
+                // 2. クライアントの存在確認
                 var client = await _context.Clients
-                    .FirstOrDefaultAsync(c => c.Id == clientIdInt);
+                    .FirstOrDefaultAsync(c => c.ClientId == client_id);
 
                 if (client == null)
                 {
-                    _logger.LogWarning("Client not found: {ClientId}", clientIdInt);
+                    _logger.LogWarning("Client not found: {ClientId}", client_id);
                     return BadRequest(new
                     {
                         error = "invalid_client",
@@ -143,7 +133,7 @@ namespace IdentityProvider.Controllers
                 {
                     if (string.IsNullOrEmpty(client_secret) || client.ClientSecret != client_secret)
                     {
-                        _logger.LogWarning("Invalid client_secret for client: {ClientId}", clientIdInt);
+                        _logger.LogWarning("Invalid client_secret for client: {ClientId}", client_id);
                         return BadRequest(new
                         {
                             error = "invalid_client",
@@ -202,10 +192,10 @@ namespace IdentityProvider.Controllers
                 }
 
                 // 9. クライアントIDの一致確認
-                if (authorizationCode.ClientId != clientIdInt)
+                if (authorizationCode.ClientId != client.Id)
                 {
                     _logger.LogWarning("Client ID mismatch. Expected: {Expected}, Provided: {Provided}", 
-                        authorizationCode.ClientId, clientIdInt);
+                        authorizationCode.ClientId, client.Id);
                     return BadRequest(new
                     {
                         error = "invalid_grant",
@@ -246,7 +236,7 @@ namespace IdentityProvider.Controllers
                 var tokenResponse = await _tokenService.GenerateTokensAsync(tokenRequest);
 
                 _logger.LogInformation("Tokens generated successfully for user: {Subject}, client: {ClientId}", 
-                    user.Subject, clientIdInt);
+                    user.Subject, client_id);
 
                 // 14. OpenID Connect準拠のレスポンス
                 return Ok(new
