@@ -37,5 +37,21 @@ namespace IdentityProvider.Services
         /// <param name="organizationId">組織ID</param>
         /// <returns>EcAuthUser または null</returns>
         Task<EcAuthUser?> GetUserByExternalIdAsync(string externalProvider, string externalSubject, int organizationId);
+
+        /// <summary>
+        /// 外部IdPユーザー情報からユーザーを作成または更新する
+        /// </summary>
+        /// <param name="externalUser">外部IdPユーザー情報</param>
+        /// <param name="organizationId">組織ID</param>
+        /// <returns>EcAuthUser</returns>
+        Task<EcAuthUser> CreateOrUpdateFromExternalAsync(ExternalUserInfo externalUser, int organizationId);
+
+        /// <summary>
+        /// メールハッシュでユーザーを検索する（複数組織対応）
+        /// </summary>
+        /// <param name="emailHash">メールアドレスのハッシュ</param>
+        /// <param name="organizationId">組織ID（nullの場合は全組織）</param>
+        /// <returns>ユーザーリスト</returns>
+        Task<List<EcAuthUser>> GetUsersByEmailHashAsync(string emailHash, int? organizationId = null);
     }
 }
