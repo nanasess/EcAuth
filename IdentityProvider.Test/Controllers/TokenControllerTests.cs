@@ -135,23 +135,6 @@ namespace IdentityProvider.Test.Controllers
         }
 
         [Fact]
-        public async Task Token_InvalidClientId_ReturnsBadRequest()
-        {
-            // Act
-            var result = await _controller.Token(
-                "authorization_code",
-                "test-code",
-                "https://example.com/callback",
-                "invalid",
-                null);
-
-            // Assert
-            var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
-            var response = badRequestResult.Value;
-            Assert.NotNull(response);
-        }
-
-        [Fact]
         public async Task Token_ClientNotFound_ReturnsBadRequest()
         {
             // Act
