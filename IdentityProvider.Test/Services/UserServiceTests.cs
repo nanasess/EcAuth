@@ -2,6 +2,8 @@ using IdentityProvider.Models;
 using IdentityProvider.Services;
 using IdentityProvider.Test.TestHelpers;
 using IdpUtilities;
+using Microsoft.Extensions.Logging;
+using Moq;
 
 namespace IdentityProvider.Test.Services
 {
@@ -11,7 +13,8 @@ namespace IdentityProvider.Test.Services
         public async Task GetOrCreateUserAsync_NewUser_ShouldCreateUserAndMapping()
         {
             using var context = TestDbContextHelper.CreateInMemoryContext();
-            var service = new UserService(context);
+            var mockLogger = new Mock<ILogger<UserService>>();
+            var service = new UserService(context, mockLogger.Object);
 
             // Arrange
             var organization = new Organization { Id = 1, Code = "TESTORG", Name = "TestOrg", TenantName = "test-tenant" };
@@ -51,7 +54,8 @@ namespace IdentityProvider.Test.Services
         public async Task GetOrCreateUserAsync_ExistingUser_ShouldReturnExistingUser()
         {
             using var context = TestDbContextHelper.CreateInMemoryContext();
-            var service = new UserService(context);
+            var mockLogger = new Mock<ILogger<UserService>>();
+            var service = new UserService(context, mockLogger.Object);
 
             // Arrange
             var organization = new Organization { Id = 1, Code = "TESTORG", Name = "TestOrg", TenantName = "test-tenant" };
@@ -101,15 +105,14 @@ namespace IdentityProvider.Test.Services
         [InlineData("", "external-subject", "email-hash", 1)]
         [InlineData("google", null, "email-hash", 1)]
         [InlineData("google", "", "email-hash", 1)]
-        [InlineData("google", "external-subject", null, 1)]
-        [InlineData("google", "external-subject", "", 1)]
         [InlineData("google", "external-subject", "email-hash", 0)]
         [InlineData("google", "external-subject", "email-hash", -1)]
         public async Task GetOrCreateUserAsync_InvalidRequest_ShouldThrowArgumentException(
             string? externalProvider, string? externalSubject, string? emailHash, int organizationId)
         {
             using var context = TestDbContextHelper.CreateInMemoryContext();
-            var service = new UserService(context);
+            var mockLogger = new Mock<ILogger<UserService>>();
+            var service = new UserService(context, mockLogger.Object);
 
             var request = new IUserService.UserCreationRequest
             {
@@ -126,7 +129,8 @@ namespace IdentityProvider.Test.Services
         public async Task GetUserBySubjectAsync_ExistingUser_ShouldReturnUser()
         {
             using var context = TestDbContextHelper.CreateInMemoryContext();
-            var service = new UserService(context);
+            var mockLogger = new Mock<ILogger<UserService>>();
+            var service = new UserService(context, mockLogger.Object);
 
             // Arrange
             var organization = new Organization { Id = 1, Code = "TESTORG", Name = "TestOrg", TenantName = "test-tenant" };
@@ -155,7 +159,8 @@ namespace IdentityProvider.Test.Services
         public async Task GetUserBySubjectAsync_NonExistingUser_ShouldReturnNull()
         {
             using var context = TestDbContextHelper.CreateInMemoryContext();
-            var service = new UserService(context);
+            var mockLogger = new Mock<ILogger<UserService>>();
+            var service = new UserService(context, mockLogger.Object);
 
             // Act
             var result = await service.GetUserBySubjectAsync("non-existing-subject");
@@ -171,7 +176,8 @@ namespace IdentityProvider.Test.Services
         public async Task GetUserBySubjectAsync_InvalidSubject_ShouldReturnNull(string? subject)
         {
             using var context = TestDbContextHelper.CreateInMemoryContext();
-            var service = new UserService(context);
+            var mockLogger = new Mock<ILogger<UserService>>();
+            var service = new UserService(context, mockLogger.Object);
 
             // Act
             var result = await service.GetUserBySubjectAsync(subject);
@@ -184,7 +190,8 @@ namespace IdentityProvider.Test.Services
         public async Task GetUserByExternalIdAsync_ExistingMapping_ShouldReturnUser()
         {
             using var context = TestDbContextHelper.CreateInMemoryContext();
-            var service = new UserService(context);
+            var mockLogger = new Mock<ILogger<UserService>>();
+            var service = new UserService(context, mockLogger.Object);
 
             // Arrange
             var organization = new Organization { Id = 1, Code = "TESTORG", Name = "TestOrg", TenantName = "test-tenant" };
@@ -221,7 +228,8 @@ namespace IdentityProvider.Test.Services
         public async Task GetUserByExternalIdAsync_DifferentOrganization_ShouldReturnNull()
         {
             using var context = TestDbContextHelper.CreateInMemoryContext();
-            var service = new UserService(context);
+            var mockLogger = new Mock<ILogger<UserService>>();
+            var service = new UserService(context, mockLogger.Object);
 
             // Arrange
             var organization = new Organization { Id = 1, Code = "TESTORG", Name = "TestOrg", TenantName = "test-tenant" };
@@ -255,7 +263,8 @@ namespace IdentityProvider.Test.Services
         public async Task GetUserByExternalIdAsync_NonExistingMapping_ShouldReturnNull()
         {
             using var context = TestDbContextHelper.CreateInMemoryContext();
-            var service = new UserService(context);
+            var mockLogger = new Mock<ILogger<UserService>>();
+            var service = new UserService(context, mockLogger.Object);
 
             // Act
             var result = await service.GetUserByExternalIdAsync("google", "non-existing-subject", 1);
@@ -273,13 +282,207 @@ namespace IdentityProvider.Test.Services
             string? externalProvider, string? externalSubject)
         {
             using var context = TestDbContextHelper.CreateInMemoryContext();
-            var service = new UserService(context);
+            var mockLogger = new Mock<ILogger<UserService>>();
+            var service = new UserService(context, mockLogger.Object);
 
             // Act
             var result = await service.GetUserByExternalIdAsync(externalProvider, externalSubject, 1);
 
             // Assert
             Assert.Null(result);
+        }
+
+        [Fact]
+        public async Task CreateOrUpdateFromExternalAsync_NewUser_ShouldCreateUser()
+        {
+            using var context = TestDbContextHelper.CreateInMemoryContext();
+            var mockLogger = new Mock<ILogger<UserService>>();
+            var service = new UserService(context, mockLogger.Object);
+
+            // Arrange
+            var organization = new Organization { Id = 1, Code = "TESTORG", Name = "TestOrg", TenantName = "test-tenant" };
+            context.Organizations.Add(organization);
+            await context.SaveChangesAsync();
+
+            var externalUser = new ExternalUserInfo
+            {
+                Subject = "google-user-123",
+                Email = "test@example.com",
+                Name = "Test User",
+                Provider = "google",
+                Claims = new Dictionary<string, object> { { "email_verified", "true" } }
+            };
+
+            // Act
+            var result = await service.CreateOrUpdateFromExternalAsync(externalUser, 1);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.NotEmpty(result.Subject);
+            Assert.Equal(EmailHashUtil.HashEmail("test@example.com"), result.EmailHash);
+            Assert.Equal(1, result.OrganizationId);
+
+            // Verify external mapping was created
+            var mappingInDb = context.ExternalIdpMappings
+                .FirstOrDefault(m => m.EcAuthSubject == result.Subject);
+            Assert.NotNull(mappingInDb);
+            Assert.Equal("google", mappingInDb.ExternalProvider);
+            Assert.Equal("google-user-123", mappingInDb.ExternalSubject);
+        }
+
+        [Fact]
+        public async Task CreateOrUpdateFromExternalAsync_UserWithoutEmail_ShouldCreateUserWithEmptyEmailHash()
+        {
+            using var context = TestDbContextHelper.CreateInMemoryContext();
+            var mockLogger = new Mock<ILogger<UserService>>();
+            var service = new UserService(context, mockLogger.Object);
+
+            // Arrange
+            var organization = new Organization { Id = 1, Code = "TESTORG", Name = "TestOrg", TenantName = "test-tenant" };
+            context.Organizations.Add(organization);
+            await context.SaveChangesAsync();
+
+            var externalUser = new ExternalUserInfo
+            {
+                Subject = "line-user-456",
+                Email = null, // LINEユーザーなどメールが提供されない場合
+                Name = "LINE User",
+                Provider = "line"
+            };
+
+            // Act
+            var result = await service.CreateOrUpdateFromExternalAsync(externalUser, 1);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Equal(string.Empty, result.EmailHash);
+            Assert.Equal(1, result.OrganizationId);
+        }
+
+        [Theory]
+        [InlineData(null, "google", 1)]
+        [InlineData("", "google", 1)]
+        [InlineData("subject", null, 1)]
+        [InlineData("subject", "", 1)]
+        [InlineData("subject", "google", 0)]
+        [InlineData("subject", "google", -1)]
+        public async Task CreateOrUpdateFromExternalAsync_InvalidParameters_ShouldThrowArgumentException(
+            string? subject, string? provider, int organizationId)
+        {
+            using var context = TestDbContextHelper.CreateInMemoryContext();
+            var mockLogger = new Mock<ILogger<UserService>>();
+            var service = new UserService(context, mockLogger.Object);
+
+            var externalUser = new ExternalUserInfo
+            {
+                Subject = subject ?? "",
+                Provider = provider ?? "",
+                Email = "test@example.com"
+            };
+
+            await Assert.ThrowsAsync<ArgumentException>(() => 
+                service.CreateOrUpdateFromExternalAsync(externalUser, organizationId));
+        }
+
+        [Fact]
+        public async Task CreateOrUpdateFromExternalAsync_NullExternalUser_ShouldThrowArgumentNullException()
+        {
+            using var context = TestDbContextHelper.CreateInMemoryContext();
+            var mockLogger = new Mock<ILogger<UserService>>();
+            var service = new UserService(context, mockLogger.Object);
+
+            await Assert.ThrowsAsync<ArgumentNullException>(() => 
+                service.CreateOrUpdateFromExternalAsync(null!, 1));
+        }
+
+        [Fact]
+        public async Task GetUsersByEmailHashAsync_ExistingUsers_ShouldReturnUsers()
+        {
+            using var context = TestDbContextHelper.CreateInMemoryContext();
+            var mockLogger = new Mock<ILogger<UserService>>();
+            var service = new UserService(context, mockLogger.Object);
+
+            // Arrange
+            var organization1 = new Organization { Id = 1, Code = "ORG1", Name = "Org1", TenantName = "test-tenant" };
+            var organization2 = new Organization { Id = 2, Code = "ORG2", Name = "Org2", TenantName = "test-tenant" };
+            context.Organizations.AddRange(organization1, organization2);
+
+            var emailHash = EmailHashUtil.HashEmail("test@example.com");
+            var user1 = new EcAuthUser
+            {
+                Subject = "user1",
+                EmailHash = emailHash,
+                OrganizationId = 1
+            };
+            var user2 = new EcAuthUser
+            {
+                Subject = "user2",
+                EmailHash = emailHash,
+                OrganizationId = 2
+            };
+            context.EcAuthUsers.AddRange(user1, user2);
+            await context.SaveChangesAsync();
+
+            // Act - 全組織検索
+            var allUsers = await service.GetUsersByEmailHashAsync(emailHash);
+
+            // Assert
+            Assert.Equal(2, allUsers.Count);
+            Assert.Contains(allUsers, u => u.Subject == "user1");
+            Assert.Contains(allUsers, u => u.Subject == "user2");
+        }
+
+        [Fact]
+        public async Task GetUsersByEmailHashAsync_SpecificOrganization_ShouldReturnFilteredUsers()
+        {
+            using var context = TestDbContextHelper.CreateInMemoryContext();
+            var mockLogger = new Mock<ILogger<UserService>>();
+            var service = new UserService(context, mockLogger.Object);
+
+            // Arrange
+            var organization1 = new Organization { Id = 1, Code = "ORG1", Name = "Org1", TenantName = "test-tenant" };
+            var organization2 = new Organization { Id = 2, Code = "ORG2", Name = "Org2", TenantName = "test-tenant" };
+            context.Organizations.AddRange(organization1, organization2);
+
+            var emailHash = EmailHashUtil.HashEmail("test@example.com");
+            var user1 = new EcAuthUser
+            {
+                Subject = "user1",
+                EmailHash = emailHash,
+                OrganizationId = 1
+            };
+            var user2 = new EcAuthUser
+            {
+                Subject = "user2",
+                EmailHash = emailHash,
+                OrganizationId = 2
+            };
+            context.EcAuthUsers.AddRange(user1, user2);
+            await context.SaveChangesAsync();
+
+            // Act - 組織1のみ検索
+            var org1Users = await service.GetUsersByEmailHashAsync(emailHash, 1);
+
+            // Assert
+            Assert.Single(org1Users);
+            Assert.Equal("user1", org1Users[0].Subject);
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData(" ")]
+        public async Task GetUsersByEmailHashAsync_InvalidEmailHash_ShouldReturnEmptyList(string? emailHash)
+        {
+            using var context = TestDbContextHelper.CreateInMemoryContext();
+            var mockLogger = new Mock<ILogger<UserService>>();
+            var service = new UserService(context, mockLogger.Object);
+
+            // Act
+            var result = await service.GetUsersByEmailHashAsync(emailHash);
+
+            // Assert
+            Assert.Empty(result);
         }
     }
 }
