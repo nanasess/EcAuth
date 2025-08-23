@@ -2,6 +2,31 @@
 
 - `-p ec-auth` は [`docker-compose.dcproj`](./docker-compose.dcproj) の `<DockerComposeProjectName>` で指定している
 
+## Linux環境でのHTTPS対応起動方法
+
+Linux環境でHTTPSを有効にしてコンテナを起動する場合は、以下のコマンドを実行してください：
+
+### コンテナの起動（証明書は自動生成されます）
+```bash
+docker compose -f docker-compose.yml -f docker-compose.override.yml -f docker-compose.linux.yml -p ec-auth up -d --build
+```
+
+初回ビルド時にmkcertを使用して証明書が自動生成されるため、事前の証明書生成は不要です。
+
+### HTTPSエンドポイント
+- IdentityProvider: https://localhost:8081
+- MockOpenIdProvider: https://localhost:9091
+
+注意: 自己署名証明書を使用しているため、ブラウザで証明書の警告が表示されます。
+
+## Windows環境での起動方法
+
+Windows環境では従来通りの方法で起動できます：
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.override.yml -f docker-compose.vs.debug.yml -p ec-auth up -d
+```
+
 ## DB のバックアップ
 
 ``` shell

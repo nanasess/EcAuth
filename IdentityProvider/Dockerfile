@@ -37,5 +37,37 @@ RUN dotnet publish "./IdentityProvider.csproj" -c $BUILD_CONFIGURATION -o /app/p
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+ENTRYPOINT ["dotnet", "IdentityProvider.dll"]
+
+# Linux環境用: mkcertを使用した証明書生成ステージ（最後に配置してWindows環境への影響を回避）
+FROM golang:1.21-alpine AS cert-generator
+RUN apk add --no-cache git
+RUN go install filippo.io/mkcert@latest
+RUN mkcert -install
+RUN mkdir -p /certs
+RUN mkcert -cert-file /certs/localhost.crt -key-file /certs/localhost.key localhost 127.0.0.1 ::1
+
+# Linux環境用: 証明書をPFX形式に変換するステージ
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS pfx-converter
+WORKDIR /certs
+COPY --from=cert-generator /certs/localhost.crt /certs/localhost.key ./
+RUN apt-get update && apt-get install -y openssl && \
+    openssl pkcs12 -export \
+    -out aspnetapp.pfx \
+    -inkey localhost.key \
+    -in localhost.crt \
+    -passout pass:changeit
+
+# Linux環境用: HTTPS証明書付きの最終ステージ
+FROM base AS final-with-https
+WORKDIR /app
+COPY --from=publish /app/publish .
+
+# 証明書をコピーし、権限を設定
+USER root
+RUN mkdir -p /https
+COPY --from=pfx-converter /certs/aspnetapp.pfx /https/aspnetapp.pfx
+RUN chmod 644 /https/aspnetapp.pfx && chown $APP_UID:$APP_UID /https/aspnetapp.pfx
+USER $APP_UID
 
 ENTRYPOINT ["dotnet", "IdentityProvider.dll"]
