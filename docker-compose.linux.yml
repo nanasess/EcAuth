@@ -3,8 +3,7 @@ version: '3.4'
 services:
   identityprovider:
     build:
-      args:
-        USE_HTTPS_LINUX: "true"
+      target: final-with-https
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_HTTP_PORTS=8080
@@ -19,8 +18,7 @@ services:
 
   mockopenidprovider:
     build:
-      args:
-        USE_HTTPS_LINUX: "true"
+      target: final-with-https
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_HTTP_PORTS=8080

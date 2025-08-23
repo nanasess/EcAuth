@@ -56,15 +56,18 @@ RUN dotnet publish "./IdentityProvider.csproj" -c $BUILD_CONFIGURATION -o /app/p
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+ENTRYPOINT ["dotnet", "IdentityProvider.dll"]
 
-# Linux環境用: 証明書をコピー（ビルド引数で制御）
-ARG USE_HTTPS_LINUX=false
-# 一時的にrootユーザーで証明書をコピーし、権限を設定
+# Linux環境用: HTTPS証明書付きの最終ステージ
+FROM base AS final-with-https
+WORKDIR /app
+COPY --from=publish /app/publish .
+
+# 証明書をコピーし、権限を設定
 USER root
 RUN mkdir -p /https
 COPY --from=pfx-converter /certs/aspnetapp.pfx /https/aspnetapp.pfx
 RUN chmod 644 /https/aspnetapp.pfx && chown $APP_UID:$APP_UID /https/aspnetapp.pfx
-# 元のユーザーに戻す
 USER $APP_UID
 
 ENTRYPOINT ["dotnet", "IdentityProvider.dll"]
