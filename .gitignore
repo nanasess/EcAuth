@@ -6,6 +6,10 @@
 # dotenv files
 .env
 
+# HTTPS certificates for Linux environment
+certs/
+*.pfx
+
 # User-specific files
 *.rsuser
 *.suo
