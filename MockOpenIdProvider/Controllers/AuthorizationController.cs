@@ -92,7 +92,13 @@ namespace MockOpenIdProvider.Controllers
             }
             catch (Exception ex)
             {
-                System.IO.File.AppendAllText("logs/exceptions.log", ex.ToString());
+                // FIXME ログディレクトリ生成の抽象化
+                var logsDir = "logs";
+                if (!Directory.Exists(logsDir))
+                {
+                    Directory.CreateDirectory(logsDir);
+                }
+                System.IO.File.AppendAllText(Path.Combine(logsDir, "exceptions.log"), ex.ToString() + Environment.NewLine);
                 throw;
             }
         }
