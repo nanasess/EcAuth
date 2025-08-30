@@ -68,7 +68,7 @@ namespace IdentityProvider.Test.Services
                 RedirectUri = "https://integration.example.com/callback",
                 Scope = "openid profile email",
                 State = "test-state-value",
-                ExpirationMinutes = 1 // 1分で期限切れ
+                ExpirationMinutes = 10 // 10分で期限切れ
             };
 
             // Step 1: 認可コード生成
