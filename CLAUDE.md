@@ -2,12 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+アーキテクチャ等の説明は @docs/CLAUDE.md にあります.
+
 ## リポジトリ構成
 
 このプロジェクトは以下の2つのリポジトリで構成されています：
 
 - **./**: アプリケーションコードのみを管理
-- **docs/**: 全てのドキュメント、設計書、ガイドを管理
+- @docs/: 全てのドキュメント、設計書、ガイドを管理
 
 Claude Code Actions の制限で `working_directory` を変更できないため、このディレクトリ内に EcAuthDocs を clone しています。
 
