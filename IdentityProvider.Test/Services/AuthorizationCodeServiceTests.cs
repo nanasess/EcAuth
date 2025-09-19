@@ -152,27 +152,9 @@ namespace IdentityProvider.Test.Services
                 _service.GenerateAuthorizationCodeAsync(request));
         }
 
-        [Fact]
-        public async Task GenerateAuthorizationCodeAsync_RateLimitExceeded_ThrowsInvalidOperationException()
-        {
-            // Arrange
-            var request = new IAuthorizationCodeService.AuthorizationCodeRequest
-            {
-                Subject = "test-subject",
-                ClientId = 1,
-                RedirectUri = "https://example.com/callback"
-            };
-
-            // Act - レート制限に達するまでコードを生成
-            for (int i = 0; i < 5; i++)
-            {
-                await _service.GenerateAuthorizationCodeAsync(request);
-            }
-
-            // Assert - 次のリクエストでエラーが発生することを確認
-            await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                _service.GenerateAuthorizationCodeAsync(request));
-        }
+        // レート制限機能は削除されたため、このテストも削除
+        // [Fact]
+        // public async Task GenerateAuthorizationCodeAsync_RateLimitExceeded_ThrowsInvalidOperationException()
 
         [Fact]
         public async Task GetAuthorizationCodeAsync_ValidCode_ReturnsCode()

@@ -59,34 +59,12 @@ namespace IdentityProvider.Services
                 throw new ArgumentException("ExpirationMinutes は1分から30分の範囲で指定してください", nameof(request.ExpirationMinutes));
         }
 
-        /// <summary>
-        /// レート制限チェック（同一クライアント・ユーザーの組み合わせで短時間の大量生成を防止）
-        /// </summary>
-        private async Task<bool> CheckRateLimitAsync(string subject, int clientId)
-        {
-            var recentCodes = await _context.AuthorizationCodes
-                .Where(ac => ac.EcAuthSubject == subject
-                          && ac.ClientId == clientId
-                          && ac.CreatedAt > DateTimeOffset.UtcNow.AddMinutes(-1))
-                .CountAsync();
-
-            return recentCodes < 5; // 1分間に5回まで
-        }
 
         public async Task<AuthorizationCode> GenerateAuthorizationCodeAsync(
             IAuthorizationCodeService.AuthorizationCodeRequest request)
         {
             // パラメータ検証
             ValidateRequest(request);
-
-            // レート制限チェック
-            if (!await CheckRateLimitAsync(request.Subject, request.ClientId))
-            {
-                _logger.LogWarning(
-                    "レート制限に達しました: Subject={Subject}, ClientId={ClientId}",
-                    request.Subject, request.ClientId);
-                throw new InvalidOperationException("認可コード生成のレート制限に達しました。しばらく時間を置いてから再試行してください。");
-            }
 
             // ユニークなコードを生成（衝突チェック付き）
             string code;
@@ -133,8 +111,6 @@ namespace IdentityProvider.Services
                 return null;
 
             var authorizationCode = await _context.AuthorizationCodes
-                .Include(ac => ac.EcAuthUser)
-                .Include(ac => ac.Client)
                 .FirstOrDefaultAsync(ac => ac.Code == code);
 
             if (authorizationCode == null)
