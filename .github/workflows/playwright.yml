@@ -40,7 +40,7 @@ jobs:
       - run: echo "FEDERATE_OAUTH2_USERINFO_ENDPOINT=https://localhost:9091/userinfo" >> $GITHUB_ENV
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '9.0.x'
       - name: Restore .NET tools
