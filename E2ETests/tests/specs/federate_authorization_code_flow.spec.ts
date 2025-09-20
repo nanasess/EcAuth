@@ -40,9 +40,10 @@ test.describe.serial('認可コードフローフェデレーションのテス�
         state: (url.searchParams.get('state') ?? '')
       }
     });
-    console.log((await response.body()).toString());
-    expect((await response.json()).access_token).toBeTruthy();
-    expect((await response.json()).token_type).toBe('Bearer');
+    const responseBody = await response.json();
+    console.log(JSON.stringify(responseBody));
+    expect(responseBody.access_token).toBeTruthy();
+    expect(responseBody.token_type).toBe('Bearer');
 
     // const userInfoRequest = await request.newContext();
     // const userInfoResponse = await userInfoRequest.get(userInfoEndpoint, {
