@@ -24,11 +24,11 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
       - name: Checkout EcAuthDocs repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: nanasess/EcAuthDocs
           path: docs
