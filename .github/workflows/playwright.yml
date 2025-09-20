@@ -27,7 +27,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - run: cat .env.dist >> $GITHUB_ENV
       - run: echo "DB_HOST=localhost" >> $GITHUB_ENV
