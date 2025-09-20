@@ -144,7 +144,6 @@ namespace IdentityProvider.Controllers
 
                 // 5. 認可コードの取得・検証
                 var authorizationCode = await _context.AuthorizationCodes
-                    .Include(ac => ac.EcAuthUser)
                     .FirstOrDefaultAsync(ac => ac.Code == code);
 
                 if (authorizationCode == null)
@@ -209,10 +208,17 @@ namespace IdentityProvider.Controllers
                 await _context.SaveChangesAsync();
 
                 // 11. ユーザー情報の取得
+                _logger.LogInformation("Fetching user for subject: {Subject}", authorizationCode.EcAuthSubject);
                 var user = await _userService.GetUserBySubjectAsync(authorizationCode.EcAuthSubject);
                 if (user == null)
                 {
                     _logger.LogError("User not found for subject: {Subject}", authorizationCode.EcAuthSubject);
+
+                    // デバッグ用: EcAuthUsersテーブルの全件を表示
+                    var allUsers = await _context.EcAuthUsers.Select(u => new { u.Subject, u.OrganizationId }).ToListAsync();
+                    _logger.LogError("All users in database: {Users}",
+                        string.Join(", ", allUsers.Select(u => $"Subject={u.Subject}, OrgId={u.OrganizationId}")));
+
                     return BadRequest(new
                     {
                         error = "invalid_grant",
@@ -221,8 +227,8 @@ namespace IdentityProvider.Controllers
                 }
 
                 // 12. トークン生成リクエストの構築
-                var scopes = string.IsNullOrEmpty(authorizationCode.Scope) 
-                    ? null 
+                var scopes = string.IsNullOrEmpty(authorizationCode.Scope)
+                    ? null
                     : authorizationCode.Scope.Split(' ');
 
                 var tokenRequest = new ITokenService.TokenRequest
@@ -232,11 +238,22 @@ namespace IdentityProvider.Controllers
                     RequestedScopes = scopes
                 };
 
-                // 13. トークンの生成
-                var tokenResponse = await _tokenService.GenerateTokensAsync(tokenRequest);
+                _logger.LogInformation("Token request created for user: {Subject}, client: {ClientId}, scopes: {Scopes}",
+                    user.Subject, client.ClientId, string.Join(", ", scopes ?? new[] { "none" }));
 
-                _logger.LogInformation("Tokens generated successfully for user: {Subject}, client: {ClientId}", 
-                    user.Subject, client_id);
+                // 13. トークンの生成
+                ITokenService.TokenResponse tokenResponse;
+                try
+                {
+                    tokenResponse = await _tokenService.GenerateTokensAsync(tokenRequest);
+                    _logger.LogInformation("Tokens generated successfully for user: {Subject}, client: {ClientId}",
+                        user.Subject, client_id);
+                }
+                catch (Exception tokenEx)
+                {
+                    _logger.LogError(tokenEx, "Failed to generate tokens for user: {Subject}", user.Subject);
+                    throw;
+                }
 
                 // 14. OpenID Connect準拠のレスポンス
                 return Ok(new
@@ -250,7 +267,25 @@ namespace IdentityProvider.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error occurred in Token endpoint");
+                _logger.LogError(ex, "Error occurred in Token endpoint - Message: {Message}, StackTrace: {StackTrace}",
+                    ex.Message, ex.StackTrace);
+
+                // Development環境では詳細なエラー情報を返す
+                if (_environment.IsDevelopment())
+                {
+                    return StatusCode(500, new
+                    {
+                        error = "server_error",
+                        error_description = $"サーバー内部エラーが発生しました。詳細: {ex.Message}",
+                        debug_info = new
+                        {
+                            exception_type = ex.GetType().Name,
+                            message = ex.Message,
+                            stack_trace = ex.StackTrace
+                        }
+                    });
+                }
+
                 return StatusCode(500, new
                 {
                     error = "server_error",

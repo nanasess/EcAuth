@@ -107,6 +107,12 @@ test.describe.serial('認可コードフローフェデレーションのテス�
     if (responseBody.error) {
       console.log('❌ Token request failed with error:', responseBody.error);
       console.log('❌ Error description:', responseBody.error_description);
+      if (responseBody.debug_info) {
+        console.log('🐛 Debug info:');
+        console.log('   Exception type:', responseBody.debug_info.exception_type);
+        console.log('   Message:', responseBody.debug_info.message);
+        console.log('   Stack trace:', responseBody.debug_info.stack_trace);
+      }
     } else {
       console.log('✅ Token request successful');
     }
