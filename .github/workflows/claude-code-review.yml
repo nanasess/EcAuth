@@ -2,18 +2,23 @@ name: Claude Code Review
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened]
     # Optional: Only run on specific file changes
     # paths:
     #   - "src/**/*.ts"
     #   - "src/**/*.tsx"
     #   - "src/**/*.js"
     #   - "src/**/*.jsx"
+  issue_comment:
+    types: [created]
 
 jobs:
   claude-review:
-    # Skip Claude Code Review for Dependabot PRs
-    if: github.event.pull_request.user.login != 'dependabot[bot]'
+    # Run on PR creation, or on comments containing /review or @claude
+    if: |
+      (github.event_name == 'pull_request' && github.event.pull_request.user.login != 'dependabot[bot]') ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request &&
+       (contains(github.event.comment.body, '/review') || contains(github.event.comment.body, '@claude')))
 
     runs-on: ubuntu-latest
     permissions:
