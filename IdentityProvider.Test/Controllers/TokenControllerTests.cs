@@ -4,6 +4,7 @@ using IdentityProvider.Services;
 using IdentityProvider.Test.TestHelpers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -18,6 +19,7 @@ namespace IdentityProvider.Test.Controllers
         private readonly Mock<ITokenService> _mockTokenService;
         private readonly Mock<IUserService> _mockUserService;
         private readonly Mock<ILogger<TokenController>> _mockLogger;
+        private readonly Mock<IConfiguration> _mockConfiguration;
         private readonly TokenController _controller;
 
         public TokenControllerTests()
@@ -27,13 +29,15 @@ namespace IdentityProvider.Test.Controllers
             _mockTokenService = new Mock<ITokenService>();
             _mockUserService = new Mock<IUserService>();
             _mockLogger = new Mock<ILogger<TokenController>>();
+            _mockConfiguration = new Mock<IConfiguration>();
 
             _controller = new TokenController(
                 _context,
                 _mockEnvironment.Object,
                 _mockTokenService.Object,
                 _mockUserService.Object,
-                _mockLogger.Object);
+                _mockLogger.Object,
+                _mockConfiguration.Object);
         }
 
         [Fact]
