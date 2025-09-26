@@ -17,19 +17,22 @@ namespace IdentityProvider.Controllers
         private readonly ITokenService _tokenService;
         private readonly IUserService _userService;
         private readonly ILogger<TokenController> _logger;
+        private readonly IConfiguration _configuration;
 
         public TokenController(
-            EcAuthDbContext context, 
+            EcAuthDbContext context,
             IHostEnvironment environment,
             ITokenService tokenService,
             IUserService userService,
-            ILogger<TokenController> logger)
+            ILogger<TokenController> logger,
+            IConfiguration configuration)
         {
             _context = context;
             _environment = environment;
             _tokenService = tokenService;
             _userService = userService;
             _logger = logger;
+            _configuration = configuration;
         }
 
         /// <summary>
@@ -68,7 +71,7 @@ namespace IdentityProvider.Controllers
                     {
                         { "grant_type", "authorization_code" },
                         { "code", code },
-                        { "redirect_uri", "https://localhost:8081/auth/callback" },
+                        { "redirect_uri", _configuration["DEFAULT_ORGANIZATION_REDIRECT_URI"] ?? "https://localhost:8081/auth/callback" },
                         { "client_id", IdentityProvider.IdpClientId },
                         { "client_secret", IdentityProvider.IdpClientSecret },
                         { "state", state }

@@ -2,10 +2,10 @@ import { test, expect, request } from '@playwright/test';
 
 test.describe.serial('認可コードフローフェデレーションのテストをします', () => {
 
-  const authorizationEndpoint = 'https://localhost:8081/authorization';
-  const tokenEndpoint = 'https://localhost:8081/token';
-  const userInfoEndpoint = 'https://localhost:9091/userinfo';
-  const redirectUri = 'https://localhost:8081/auth/callback';
+  const authorizationEndpoint = 'http://127.0.0.1:8080/authorization';
+  const tokenEndpoint = 'http://127.0.0.1:8080/token';
+  const userInfoEndpoint = 'https://127.0.0.1:9091/userinfo';
+  const redirectUri = 'http://127.0.0.1:8080/auth/callback';
   const clientId = 'client_id';
   const clientSecret = 'client_secret';
   const scopes = 'openid profile email';

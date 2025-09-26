@@ -2,10 +2,18 @@
 
 # このステージは、VS から高速モードで実行するときに使用されます (デバッグ構成の既定値)
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS base
-USER $APP_UID
 WORKDIR /app
 EXPOSE 8080
 EXPOSE 8081
+
+# 開発環境用の証明書設定
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS dev-certs
+RUN mkdir -p /https && \
+    dotnet dev-certs https -ep /https/aspnetapp.pfx -p changeit
+
+FROM base AS base-with-certs
+COPY --from=dev-certs /https/aspnetapp.pfx /https/aspnetapp.pfx
+USER $APP_UID
 
 
 # このステージは、サービス プロジェクトのビルドに使用されます
@@ -34,7 +42,7 @@ RUN dotnet publish "./IdentityProvider.csproj" -c $BUILD_CONFIGURATION -o /app/p
     && dotnet ef migrations bundle --output /app/publish/bundle && chmod +x /app/publish/bundle
 
 # このステージは、運用環境または VS から通常モードで実行している場合に使用されます (デバッグ構成を使用しない場合の既定)
-FROM base AS final
+FROM base-with-certs AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "IdentityProvider.dll"]

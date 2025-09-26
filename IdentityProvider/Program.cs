@@ -41,7 +41,12 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseMiddleware<TenantMiddleware>();
-app.UseHttpsRedirection();
+
+// 開発環境ではHTTPSリダイレクトを無効化（E2Eテストのため）
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseAuthorization();
 
