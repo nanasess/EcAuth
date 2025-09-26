@@ -100,6 +100,10 @@ echo "✅ すべてのサービスが起動しました"
 
 # E2Eテストを実行
 echo "🧪 E2Eテストを実行します..."
+
+# E2Eテスト用の環境変数をエクスポート
+export $(cat "$ENV_FILE" | grep -E '^E2E_' | xargs)
+
 cd E2ETests
 yarn install
 npx playwright test --reporter=list
