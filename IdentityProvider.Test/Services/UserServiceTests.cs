@@ -2,6 +2,7 @@ using IdentityProvider.Models;
 using IdentityProvider.Services;
 using IdentityProvider.Test.TestHelpers;
 using IdpUtilities;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -39,7 +40,7 @@ namespace IdentityProvider.Test.Services
             Assert.Equal(request.OrganizationId, result.OrganizationId);
 
             // Verify user was created in database
-            var userInDb = await context.EcAuthUsers.FindAsync(result.Subject);
+            var userInDb = await context.EcAuthUsers.FirstOrDefaultAsync(u => u.Subject == result.Subject);
             Assert.NotNull(userInDb);
 
             // Verify external IdP mapping was created
@@ -95,7 +96,7 @@ namespace IdentityProvider.Test.Services
             Assert.Equal(existingUser.OrganizationId, result.OrganizationId);
 
             // Verify email hash was updated
-            var userInDb = await context.EcAuthUsers.FindAsync(existingUser.Subject);
+            var userInDb = await context.EcAuthUsers.FirstOrDefaultAsync(u => u.Subject == existingUser.Subject);
             Assert.NotNull(userInDb);
             Assert.Equal(request.EmailHash, userInDb.EmailHash);
         }
