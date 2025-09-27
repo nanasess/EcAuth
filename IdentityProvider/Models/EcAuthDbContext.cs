@@ -23,6 +23,7 @@ namespace IdentityProvider.Models
         public DbSet<EcAuthUser> EcAuthUsers { get; set; }
         public DbSet<ExternalIdpMapping> ExternalIdpMappings { get; set; }
         public DbSet<AuthorizationCode> AuthorizationCodes { get; set; }
+        public DbSet<AccessToken> AccessTokens { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -41,6 +42,10 @@ namespace IdentityProvider.Models
             // AuthorizationCodeにもグローバルクエリフィルターを適用
             modelBuilder.Entity<AuthorizationCode>()
                 .HasQueryFilter(ac => ac.EcAuthUser != null && ac.EcAuthUser.Organization != null && ac.EcAuthUser.Organization.TenantName == _tenantService.TenantName);
+
+            // AccessTokenにもグローバルクエリフィルターを適用
+            modelBuilder.Entity<AccessToken>()
+                .HasQueryFilter(at => at.EcAuthUser != null && at.EcAuthUser.Organization != null && at.EcAuthUser.Organization.TenantName == _tenantService.TenantName);
 
             // EcAuthUser関連の設定
             modelBuilder.Entity<EcAuthUser>()
@@ -63,11 +68,25 @@ namespace IdentityProvider.Models
                 .HasPrincipalKey(u => u.Subject)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            modelBuilder.Entity<EcAuthUser>()
+                .HasMany<AccessToken>()
+                .WithOne(at => at.EcAuthUser)
+                .HasForeignKey(at => at.EcAuthSubject)
+                .HasPrincipalKey(u => u.Subject)
+                .OnDelete(DeleteBehavior.Cascade);
+
             // AuthorizationCode関連の設定
             modelBuilder.Entity<AuthorizationCode>()
                 .HasOne(ac => ac.Client)
                 .WithMany()
                 .HasForeignKey(ac => ac.ClientId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // AccessToken関連の設定
+            modelBuilder.Entity<AccessToken>()
+                .HasOne(at => at.Client)
+                .WithMany()
+                .HasForeignKey(at => at.ClientId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             // インデックスの設定
@@ -81,6 +100,13 @@ namespace IdentityProvider.Models
 
             modelBuilder.Entity<AuthorizationCode>()
                 .HasIndex(ac => ac.ExpiresAt);
+
+            modelBuilder.Entity<AccessToken>()
+                .HasIndex(at => at.Token)
+                .IsUnique();
+
+            modelBuilder.Entity<AccessToken>()
+                .HasIndex(at => at.ExpiresAt);
 
             base.OnModelCreating(modelBuilder);
         }

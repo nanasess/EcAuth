@@ -118,11 +118,25 @@ namespace IdentityProvider.Services
                 throw new ArgumentException("Client cannot be null.", nameof(request.Client));
 
             // アクセストークンは簡単なランダム文字列として生成
-            // より複雑な要件がある場合はJWTベースにも変更可能
             var accessToken = RandomUtil.GenerateRandomBytes(32);
+            var expiresAt = DateTime.UtcNow.AddHours(1); // 1時間後に期限切れ
 
-            // 必要に応じて、アクセストークンをデータベースに保存
-            // （リボケーションや詳細な管理が必要な場合）
+            // アクセストークンをデータベースに保存
+            var accessTokenEntity = new AccessToken
+            {
+                Token = accessToken,
+                ExpiresAt = expiresAt,
+                ClientId = request.Client.Id,
+                EcAuthSubject = request.User.Subject,
+                CreatedAt = DateTime.UtcNow,
+                Scopes = request.RequestedScopes != null ? string.Join(" ", request.RequestedScopes) : null
+            };
+
+            _context.AccessTokens.Add(accessTokenEntity);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Access token generated for user {Subject} and client {ClientId}",
+                request.User.Subject, request.Client.Id);
 
             return accessToken;
         }
@@ -196,6 +210,62 @@ namespace IdentityProvider.Services
         {
             // 実際の実装では設定ファイルから取得
             return "https://ecauth.example.com";
+        }
+
+        public async Task<string?> ValidateAccessTokenAsync(string token)
+        {
+            try
+            {
+                var accessToken = await _context.AccessTokens
+                    .Include(at => at.EcAuthUser)
+                    .FirstOrDefaultAsync(at => at.Token == token);
+
+                if (accessToken == null)
+                {
+                    _logger.LogWarning("Access token not found: {Token}", token.Substring(0, Math.Min(8, token.Length)) + "...");
+                    return null;
+                }
+
+                if (accessToken.IsExpired)
+                {
+                    _logger.LogWarning("Access token expired: {Token}", token.Substring(0, Math.Min(8, token.Length)) + "...");
+                    return null;
+                }
+
+                _logger.LogDebug("Access token validated successfully for user {Subject}", accessToken.EcAuthSubject);
+                return accessToken.EcAuthSubject;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Access token validation failed");
+                return null;
+            }
+        }
+
+        public async Task<bool> RevokeAccessTokenAsync(string token)
+        {
+            try
+            {
+                var accessToken = await _context.AccessTokens
+                    .FirstOrDefaultAsync(at => at.Token == token);
+
+                if (accessToken == null)
+                {
+                    _logger.LogWarning("Access token not found for revocation: {Token}", token.Substring(0, Math.Min(8, token.Length)) + "...");
+                    return false;
+                }
+
+                _context.AccessTokens.Remove(accessToken);
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Access token revoked successfully: {Token}", token.Substring(0, Math.Min(8, token.Length)) + "...");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to revoke access token");
+                return false;
+            }
         }
 
         private async Task<string> GetClientIdStringAsync(int clientId)

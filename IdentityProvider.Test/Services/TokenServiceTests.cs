@@ -2,6 +2,7 @@ using IdentityProvider.Models;
 using IdentityProvider.Services;
 using IdentityProvider.Test.TestHelpers;
 using IdpUtilities;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -353,6 +354,142 @@ namespace IdentityProvider.Test.Services
             await context.SaveChangesAsync();
 
             return (client, user, rsaKeyPair);
+        }
+
+        [Fact]
+        public async Task ValidateAccessTokenAsync_ValidToken_ShouldReturnSubject()
+        {
+            using var context = TestDbContextHelper.CreateInMemoryContext();
+            var service = new TokenService(context, _logger);
+
+            // Arrange
+            var (client, user, _) = await SetupTestDataAsync(context);
+
+            var request = new ITokenService.TokenRequest
+            {
+                User = user,
+                Client = client,
+                RequestedScopes = new[] { "openid" }
+            };
+
+            var accessToken = await service.GenerateAccessTokenAsync(request);
+
+            // Act
+            var subject = await service.ValidateAccessTokenAsync(accessToken);
+
+            // Assert
+            Assert.Equal(user.Subject, subject);
+        }
+
+        [Fact]
+        public async Task ValidateAccessTokenAsync_InvalidToken_ShouldReturnNull()
+        {
+            using var context = TestDbContextHelper.CreateInMemoryContext();
+            var service = new TokenService(context, _logger);
+
+            // Act
+            var subject = await service.ValidateAccessTokenAsync("invalid-token");
+
+            // Assert
+            Assert.Null(subject);
+        }
+
+        [Fact]
+        public async Task ValidateAccessTokenAsync_ExpiredToken_ShouldReturnNull()
+        {
+            using var context = TestDbContextHelper.CreateInMemoryContext();
+            var service = new TokenService(context, _logger);
+
+            // Arrange
+            var (client, user, _) = await SetupTestDataAsync(context);
+
+            // Create expired access token
+            var expiredToken = new AccessToken
+            {
+                Token = "expired-token",
+                ExpiresAt = DateTime.UtcNow.AddHours(-1), // Expired 1 hour ago
+                ClientId = client.Id,
+                EcAuthSubject = user.Subject,
+                CreatedAt = DateTime.UtcNow.AddHours(-2)
+            };
+            context.AccessTokens.Add(expiredToken);
+            await context.SaveChangesAsync();
+
+            // Act
+            var subject = await service.ValidateAccessTokenAsync("expired-token");
+
+            // Assert
+            Assert.Null(subject);
+        }
+
+        [Fact]
+        public async Task RevokeAccessTokenAsync_ValidToken_ShouldRevokeSuccessfully()
+        {
+            using var context = TestDbContextHelper.CreateInMemoryContext();
+            var service = new TokenService(context, _logger);
+
+            // Arrange
+            var (client, user, _) = await SetupTestDataAsync(context);
+
+            var request = new ITokenService.TokenRequest
+            {
+                User = user,
+                Client = client
+            };
+
+            var accessToken = await service.GenerateAccessTokenAsync(request);
+
+            // Act
+            var result = await service.RevokeAccessTokenAsync(accessToken);
+
+            // Assert
+            Assert.True(result);
+
+            // Verify token is removed from database
+            var removedToken = await context.AccessTokens.FirstOrDefaultAsync(at => at.Token == accessToken);
+            Assert.Null(removedToken);
+        }
+
+        [Fact]
+        public async Task RevokeAccessTokenAsync_InvalidToken_ShouldReturnFalse()
+        {
+            using var context = TestDbContextHelper.CreateInMemoryContext();
+            var service = new TokenService(context, _logger);
+
+            // Act
+            var result = await service.RevokeAccessTokenAsync("invalid-token");
+
+            // Assert
+            Assert.False(result);
+        }
+
+        [Fact]
+        public async Task GenerateAccessTokenAsync_ShouldSaveTokenToDatabase()
+        {
+            using var context = TestDbContextHelper.CreateInMemoryContext();
+            var service = new TokenService(context, _logger);
+
+            // Arrange
+            var (client, user, _) = await SetupTestDataAsync(context);
+
+            var request = new ITokenService.TokenRequest
+            {
+                User = user,
+                Client = client,
+                RequestedScopes = new[] { "openid", "email" }
+            };
+
+            // Act
+            var accessToken = await service.GenerateAccessTokenAsync(request);
+
+            // Assert
+            var savedToken = await context.AccessTokens.FirstOrDefaultAsync(at => at.Token == accessToken);
+            Assert.NotNull(savedToken);
+            Assert.Equal(user.Subject, savedToken.EcAuthSubject);
+            Assert.Equal(client.Id, savedToken.ClientId);
+            Assert.Equal("openid email", savedToken.Scopes);
+            Assert.False(savedToken.IsExpired);
+            Assert.True(savedToken.ExpiresAt > DateTime.UtcNow);
         }
     }
 }
