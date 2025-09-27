@@ -4,6 +4,7 @@ using IdentityProvider.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace IdentityProvider.Migrations
 {
     [DbContext(typeof(EcAuthDbContext))]
-    partial class EcAuthDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250927223928_AddAccessToken")]
+    partial class AddAccessToken
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -211,12 +214,10 @@ namespace IdentityProvider.Migrations
 
             modelBuilder.Entity("IdentityProvider.Models.EcAuthUser", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    b.Property<string>("Subject")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("subject");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset")
@@ -232,20 +233,11 @@ namespace IdentityProvider.Migrations
                         .HasColumnType("int")
                         .HasColumnName("organization_id");
 
-                    b.Property<string>("Subject")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)")
-                        .HasColumnName("subject");
-
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("datetimeoffset")
                         .HasColumnName("updated_at");
 
-                    b.HasKey("Id");
-
-                    b.HasIndex("Subject")
-                        .IsUnique();
+                    b.HasKey("Subject");
 
                     b.HasIndex("OrganizationId", "EmailHash")
                         .IsUnique();
@@ -528,7 +520,6 @@ namespace IdentityProvider.Migrations
                     b.HasOne("IdentityProvider.Models.EcAuthUser", "EcAuthUser")
                         .WithMany("AuthorizationCodes")
                         .HasForeignKey("EcAuthSubject")
-                        .HasPrincipalKey("Subject")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -562,7 +553,6 @@ namespace IdentityProvider.Migrations
                     b.HasOne("IdentityProvider.Models.EcAuthUser", "EcAuthUser")
                         .WithMany("ExternalIdpMappings")
                         .HasForeignKey("EcAuthSubject")
-                        .HasPrincipalKey("Subject")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 

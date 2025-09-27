@@ -55,5 +55,19 @@ namespace IdentityProvider.Services
         /// <param name="clientId">クライアントID</param>
         /// <returns>検証に成功した場合、ユーザーのSubject</returns>
         Task<string?> ValidateTokenAsync(string token, int clientId);
+
+        /// <summary>
+        /// アクセストークンを検証する
+        /// </summary>
+        /// <param name="token">検証するアクセストークン</param>
+        /// <returns>検証に成功した場合、ユーザーのSubject</returns>
+        Task<string?> ValidateAccessTokenAsync(string token);
+
+        /// <summary>
+        /// アクセストークンを無効化する（リボケーション）
+        /// </summary>
+        /// <param name="token">無効化するアクセストークン</param>
+        /// <returns>無効化に成功したかどうか</returns>
+        Task<bool> RevokeAccessTokenAsync(string token);
     }
 }
