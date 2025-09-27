@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace IdentityProvider.Migrations
 {
     [DbContext(typeof(EcAuthDbContext))]
-    [Migration("20250927232321_AddtionalMigrations")]
+    [Migration("20250927232817_AddtionalMigrations")]
     partial class AddtionalMigrations
     {
         /// <inheritdoc />
