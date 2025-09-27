@@ -49,6 +49,10 @@ namespace IdentityProvider.Models
                 .HasForeignKey(u => u.OrganizationId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // SubjectをユニークなAlternate Keyとして設定
+            modelBuilder.Entity<EcAuthUser>()
+                .HasAlternateKey(u => u.Subject);
+
             modelBuilder.Entity<EcAuthUser>()
                 .HasMany(u => u.ExternalIdpMappings)
                 .WithOne(m => m.EcAuthUser)
@@ -73,6 +77,10 @@ namespace IdentityProvider.Models
             // インデックスの設定
             modelBuilder.Entity<EcAuthUser>()
                 .HasIndex(u => new { u.OrganizationId, u.EmailHash })
+                .IsUnique();
+
+            modelBuilder.Entity<EcAuthUser>()
+                .HasIndex(u => u.Subject)
                 .IsUnique();
 
             modelBuilder.Entity<ExternalIdpMapping>()

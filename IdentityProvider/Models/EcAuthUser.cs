@@ -7,9 +7,13 @@ namespace IdentityProvider.Models
     public class EcAuthUser
     {
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.None)]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [Column("id")]
+        public int Id { get; set; }
+
         [Column("subject")]
         [MaxLength(255)]
+        [Required]
         public string Subject { get; set; } = string.Empty;
 
         [Column("email_hash")]

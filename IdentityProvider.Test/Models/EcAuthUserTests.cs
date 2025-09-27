@@ -9,6 +9,7 @@ namespace IdentityProvider.Test.Models
         {
             var user = new EcAuthUser();
 
+            Assert.Equal(0, user.Id);
             Assert.Equal(string.Empty, user.Subject);
             Assert.Equal(string.Empty, user.EmailHash);
             Assert.Equal(0, user.OrganizationId);
@@ -21,6 +22,7 @@ namespace IdentityProvider.Test.Models
         [Fact]
         public void EcAuthUser_SetProperties_ShouldRetainValues()
         {
+            var id = 123;
             var subject = "test-subject-uuid";
             var emailHash = "testhash123";
             var organizationId = 1;
@@ -29,6 +31,7 @@ namespace IdentityProvider.Test.Models
 
             var user = new EcAuthUser
             {
+                Id = id,
                 Subject = subject,
                 EmailHash = emailHash,
                 OrganizationId = organizationId,
@@ -36,6 +39,7 @@ namespace IdentityProvider.Test.Models
                 UpdatedAt = updatedAt
             };
 
+            Assert.Equal(id, user.Id);
             Assert.Equal(subject, user.Subject);
             Assert.Equal(emailHash, user.EmailHash);
             Assert.Equal(organizationId, user.OrganizationId);
@@ -81,8 +85,19 @@ namespace IdentityProvider.Test.Models
         public void EcAuthUser_OrganizationId_ShouldAcceptValidValues(int organizationId)
         {
             var user = new EcAuthUser { OrganizationId = organizationId };
-            
+
             Assert.Equal(organizationId, user.OrganizationId);
+        }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(1)]
+        [InlineData(999999)]
+        public void EcAuthUser_Id_ShouldAcceptValidValues(int id)
+        {
+            var user = new EcAuthUser { Id = id };
+
+            Assert.Equal(id, user.Id);
         }
     }
 }
