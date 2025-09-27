@@ -36,13 +36,23 @@ export default defineConfig({
     },
     video: 'retain-on-failure',
     ignoreHTTPSErrors: true,
+    // Docker環境でのホスト名解決のため
+    extraHTTPHeaders: {},
+    // mockopenidproviderのホスト名を127.0.0.1にマッピング
+    baseURL: undefined,
   },
 
   /* Configure projects for major browsers */
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        // ローカルDocker環境でのホスト名解決のため（GitHub Actions環境では不要）
+        launchOptions: process.env.CI ? {} : {
+          args: ['--host-resolver-rules=MAP mockopenidprovider:8081 127.0.0.1:9091,MAP mockopenidprovider:8080 127.0.0.1:9090']
+        }
+      },
     },
 
     // {

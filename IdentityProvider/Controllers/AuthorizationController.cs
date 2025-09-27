@@ -14,11 +14,13 @@ namespace IdentityProvider.Controllers
     {
         private readonly EcAuthDbContext _context;
         private readonly ITenantService _tenantService;
+        private readonly IConfiguration _configuration;
 
-        public AuthorizationController(EcAuthDbContext context, ITenantService tenantService)
+        public AuthorizationController(EcAuthDbContext context, ITenantService tenantService, IConfiguration configuration)
         {
             _context = context;
             _tenantService = tenantService;
+            _configuration = configuration;
         }
 
         [HttpGet]
@@ -72,7 +74,7 @@ namespace IdentityProvider.Controllers
                 $"?client_id={OpenIdProvider.IdpClientId}" +
                 $"&scope={Uri.EscapeDataString(scopes)}" +
                 $"&response_type=code" +
-                $"&redirect_uri={Uri.EscapeDataString("https://localhost:8081/auth/callback")}" +
+                $"&redirect_uri={Uri.EscapeDataString(_configuration["DEFAULT_ORGANIZATION_REDIRECT_URI"] ?? "https://localhost:8081/auth/callback")}" +
                 $"&state={Uri.EscapeDataString(sealedData)}"
              );
         }

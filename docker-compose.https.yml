@@ -1,5 +1,10 @@
+# HTTPS証明書を含むDocker Compose設定
 services:
   identityprovider:
+    build:
+      context: .
+      dockerfile: IdentityProvider/Dockerfile
+      target: final-with-https
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_HTTP_PORTS=8080
@@ -9,12 +14,12 @@ services:
     ports:
       - "8080:8080"
       - "8081:8081"
-    volumes:
-      - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
-      - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro
-    command: ["dotnet", "ef", "database", "update"]
 
   mockopenidprovider:
+    build:
+      context: .
+      dockerfile: MockOpenIdProvider/Dockerfile
+      target: final-with-https
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_HTTP_PORTS=8080
@@ -24,6 +29,3 @@ services:
     ports:
       - "9090:8080"
       - "9091:8081"
-    volumes:
-      - ${APPDATA}/Microsoft/UserSecrets:/home/app/.microsoft/usersecrets:ro
-      - ${APPDATA}/ASP.NET/Https:/home/app/.aspnet/https:ro

@@ -16,19 +16,22 @@ namespace IdentityProvider.Controllers
         private readonly IUserService _userService;
         private readonly ILogger<AuthorizationCallbackController> _logger;
         private readonly IHostEnvironment _environment;
+        private readonly IConfiguration _configuration;
 
         public AuthorizationCallbackController(
             EcAuthDbContext context,
             IAuthorizationCodeService authorizationCodeService,
             IUserService userService,
             ILogger<AuthorizationCallbackController> logger,
-            IHostEnvironment environment)
+            IHostEnvironment environment,
+            IConfiguration configuration)
         {
             _context = context;
             _authorizationCodeService = authorizationCodeService;
             _userService = userService;
             _logger = logger;
             _environment = environment;
+            _configuration = configuration;
         }
 
         [HttpGet]
@@ -164,7 +167,7 @@ namespace IdentityProvider.Controllers
                 {
                     { "grant_type", "authorization_code" },
                     { "code", code },
-                    { "redirect_uri", "https://localhost:8081/auth/callback" },
+                    { "redirect_uri", _configuration["DEFAULT_ORGANIZATION_REDIRECT_URI"] ?? "https://localhost:8081/auth/callback" },
                     { "client_id", provider.IdpClientId },
                     { "client_secret", provider.IdpClientSecret }
                 });

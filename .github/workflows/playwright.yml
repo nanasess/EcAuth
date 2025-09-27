@@ -38,6 +38,11 @@ jobs:
       - run: echo "FEDERATE_OAUTH2_AUTHORIZATION_ENDPOINT=https://localhost:9091/authorization" >> $GITHUB_ENV
       - run: echo "FEDERATE_OAUTH2_TOKEN_ENDPOINT=https://localhost:9091/token" >> $GITHUB_ENV
       - run: echo "FEDERATE_OAUTH2_USERINFO_ENDPOINT=https://localhost:9091/userinfo" >> $GITHUB_ENV
+      # E2Eテスト用の環境変数（GitHub Actions環境でのHTTPSエンドポイント）
+      - run: echo "E2E_AUTHORIZATION_ENDPOINT=https://localhost:8081/authorization" >> $GITHUB_ENV
+      - run: echo "E2E_TOKEN_ENDPOINT=https://localhost:8081/token" >> $GITHUB_ENV
+      - run: echo "E2E_USERINFO_ENDPOINT=https://localhost:9091/userinfo" >> $GITHUB_ENV
+      - run: echo "E2E_REDIRECT_URI=https://localhost:8081/auth/callback" >> $GITHUB_ENV
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v5

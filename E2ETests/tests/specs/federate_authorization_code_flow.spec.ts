@@ -2,10 +2,11 @@ import { test, expect, request } from '@playwright/test';
 
 test.describe.serial('認可コードフローフェデレーションのテストをします', () => {
 
-  const authorizationEndpoint = 'https://localhost:8081/authorization';
-  const tokenEndpoint = 'https://localhost:8081/token';
-  const userInfoEndpoint = 'https://localhost:9091/userinfo';
-  const redirectUri = 'https://localhost:8081/auth/callback';
+  // 環境変数から動的にエンドポイントを取得（デフォルト値はGitHub Actions用）
+  const authorizationEndpoint = process.env.E2E_AUTHORIZATION_ENDPOINT || 'https://localhost:8081/authorization';
+  const tokenEndpoint = process.env.E2E_TOKEN_ENDPOINT || 'https://localhost:8081/token';
+  const userInfoEndpoint = process.env.E2E_USERINFO_ENDPOINT || 'https://localhost:9091/userinfo';
+  const redirectUri = process.env.E2E_REDIRECT_URI || 'https://localhost:8081/auth/callback';
   const clientId = 'client_id';
   const clientSecret = 'client_secret';
   const scopes = 'openid profile email';
@@ -66,7 +67,7 @@ test.describe.serial('認可コードフローフェデレーションのテス�
 
       // クライアントへのリダイレクトを待つ
       console.log('⏳ Waiting for redirect to client with authorization code...');
-      await page.waitForURL(/https:\/\/localhost:8081\/auth\/callback\?code=/, { timeout: 10000 });
+      await page.waitForURL(new RegExp(redirectUri.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\?code='), { timeout: 10000 });
       console.log('✅ Redirected to client with code');
     } catch (error) {
       console.log('❌ Error during authorization flow:', error);
