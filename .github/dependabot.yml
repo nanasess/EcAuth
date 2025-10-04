@@ -18,7 +18,15 @@ updates:
 
   # .NET NuGet パッケージの自動更新
   - package-ecosystem: "nuget"
-    directory: "/"
+    directories:
+      - "/"
+      - "/IdentityProvider"
+      - "/MockOpenIdProvider"
+      - "/IdpUtilities"
+      - "/ConsoleApp"
+      - "/IdentityProvider.Test"
+      - "/MockOpenIdProvider.Test"
+      - "/IdpUtilities.Test"
     schedule:
       interval: "weekly"
       day: "tuesday"
