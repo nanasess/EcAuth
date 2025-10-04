@@ -509,6 +509,7 @@ namespace IdentityProvider.Migrations
                     b.HasOne("IdentityProvider.Models.EcAuthUser", "EcAuthUser")
                         .WithMany()
                         .HasForeignKey("EcAuthSubject")
+                        .HasPrincipalKey("Subject")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
