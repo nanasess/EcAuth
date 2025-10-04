@@ -21,8 +21,8 @@ namespace IdentityProvider.Test.Controllers
 
         public UserinfoControllerIntegrationTests()
         {
-            _context = TestDbContextHelper.CreateInMemoryContext();
             _mockTenantService = new MockTenantService();
+            _context = TestDbContextHelper.CreateInMemoryContext(tenantService: _mockTenantService);
 
             // 実際のサービスのインスタンスを作成（統合テスト）
             var mockLogger = new Mock<ILogger<TokenService>>();
