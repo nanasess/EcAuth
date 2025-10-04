@@ -6,14 +6,14 @@ namespace IdentityProvider.Test.TestHelpers
 {
     public static class TestDbContextHelper
     {
-        public static EcAuthDbContext CreateInMemoryContext(string? databaseName = null)
+        public static EcAuthDbContext CreateInMemoryContext(string? databaseName = null, ITenantService? tenantService = null)
         {
             var dbName = databaseName ?? Guid.NewGuid().ToString();
             var options = new DbContextOptionsBuilder<EcAuthDbContext>()
                 .UseInMemoryDatabase(databaseName: dbName)
                 .Options;
 
-            var mockTenantService = new MockTenantService();
+            var mockTenantService = tenantService ?? new MockTenantService();
             return new EcAuthDbContext(options, mockTenantService);
         }
     }
