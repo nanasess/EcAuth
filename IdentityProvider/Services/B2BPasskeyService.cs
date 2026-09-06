@@ -216,6 +216,14 @@ namespace IdentityProvider.Services
             var resolvedSubject = user.Subject;
 
             // 既存のクレデンシャルを取得（除外リスト用）
+            //
+            // ここは発行元で絞らない（EcAuthDocs#110 リリース 3 で allowCredentials のみを絞る）。
+            // excludeCredentials は「同じ認証器に同じユーザーの重複登録をさせない」ための機構で、
+            // 認証器側のクレデンシャルは (rp_id, user_handle) で識別される。発行元で絞ると、
+            // 複数の発行元 identity を持つ b2b_user（例: EC-CUBE と企業 SSO が同一人物に解決される
+            // 構成）で同じ認証器が兄弟 Client のクレデンシャルを黙って上書きし、DB 側に二度と
+            // 認証できない行が残る。列挙の観点でも、ここは client_secret で認証済みかつ解決済みの
+            // subject に限った一覧なので Client 境界を越えない。
             var existingCredentials = await _context.B2BPasskeyCredentials
                 .IgnoreQueryFilters()
                 .Where(c => c.B2BSubject == resolvedSubject)
@@ -756,6 +764,18 @@ namespace IdentityProvider.Services
             }
 
             // 許可されるクレデンシャルを取得
+            //
+            // 発行元（b2b_passkey_credential.client_id）でリクエスト元 Client に絞る
+            // （EcAuthDocs#110 問題 4 / リリース 3）。同一ドメインに EC-CUBE と WordPress が
+            // 同居する構成では両 Client の RP ID が一致するため、絞らないと
+            // 「WordPress の管理者パスキーが EC-CUBE 管理画面のログイン候補に出る」。
+            // Organization での絞り込みは 1 org : 複数 Client を成立させる本 issue の目的上
+            // 分離にならない。
+            //
+            // NULL は絞り込み対象外（＝候補に含める）。リリース 2 の backfill 完了から
+            // ロールアウト完了までの窓で旧インスタンスが作ったクレデンシャルは発行元が NULL に
+            // なるため、ここで締め出すとそのユーザーがログイン不能になる。この特例は残存 NULL を
+            // 解消して NOT NULL 化するリリース 4 で除去する。
             var allowCredentials = new List<PublicKeyCredentialDescriptor>();
             if (b2bSubject != null)
             {
@@ -770,7 +790,9 @@ namespace IdentityProvider.Services
                     .IgnoreQueryFilters()
                     .Where(c => c.B2BSubject == b2bSubject
                         && c.B2BUser != null
-                        && c.B2BUser.OrganizationId == client.OrganizationId)
+                        && c.B2BUser.OrganizationId == client.OrganizationId
+                        // 発行元による絞り込み（EcAuthDocs#110 問題 4 / リリース 3）
+                        && (c.ClientId == null || c.ClientId == client.Id))
                     .Select(c => new PublicKeyCredentialDescriptor(
                         PublicKeyCredentialType.PublicKey,
                         c.CredentialId,
@@ -804,7 +826,9 @@ namespace IdentityProvider.Services
 
                 allowCredentials = await _context.B2BPasskeyCredentials
                     .IgnoreQueryFilters()
-                    .Where(c => orgUserSubjects.Contains(c.B2BSubject))
+                    .Where(c => orgUserSubjects.Contains(c.B2BSubject)
+                        // 発行元による絞り込み（EcAuthDocs#110 問題 4 / リリース 3）
+                        && (c.ClientId == null || c.ClientId == client.Id))
                     .Select(c => new PublicKeyCredentialDescriptor(
                         PublicKeyCredentialType.PublicKey,
                         c.CredentialId,
