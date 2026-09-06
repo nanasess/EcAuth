@@ -611,6 +611,10 @@ namespace IdentityProvider.Services
                 var credential = new B2BPasskeyCredential
                 {
                     B2BSubject = challenge.Subject!,
+                    // 発行元 Client（EcAuthDocs#110 リリース 2）。challenge は options 発行時に
+                    // client_id で認証済みの Client と紐づいているため、ここで決定的に書ける。
+                    // リリース 2 では書くだけで読まない（allowCredentials の絞り込みはリリース 3）。
+                    ClientId = challenge.ClientId,
                     CredentialId = result.Id,
                     PublicKey = result.PublicKey,
                     SignCount = (uint)result.SignCount,

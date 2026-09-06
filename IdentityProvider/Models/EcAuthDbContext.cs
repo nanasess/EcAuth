@@ -240,6 +240,15 @@ namespace IdentityProvider.Models
                 .HasIndex(c => c.CredentialId)
                 .IsUnique();
 
+            // クレデンシャルの発行元 Client（EcAuthDocs#110 リリース 2）。
+            // 移行期間中は nullable で、リリース 4 で NOT NULL 化する。削除挙動は Client を参照する
+            // 他エンティティ（AuthorizationCode / AccessToken / WebAuthnChallenge）と揃えて Restrict。
+            modelBuilder.Entity<B2BPasskeyCredential>()
+                .HasOne(c => c.Client)
+                .WithMany()
+                .HasForeignKey(c => c.ClientId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             // WebAuthnChallenge 関連の設定
             modelBuilder.Entity<WebAuthnChallenge>()
                 .HasIndex(wc => wc.SessionId)
