@@ -58,6 +58,22 @@ namespace IdentityProvider.Models
         [Column("last_used_at")]
         public DateTimeOffset? LastUsedAt { get; set; }
 
+        /// <summary>
+        /// このクレデンシャルを登録した Client（発行元）。EcAuthDocs#110 のリリース 2 で追加。
+        ///
+        /// 同一 Organization に複数の Client がぶら下がる構成では、b2b_subject だけで
+        /// allowCredentials を組むと別アプリの管理者パスキーがログイン候補に出る（#110 の問題 4）。
+        /// 発行元で絞れるようにクレデンシャル自身が Client を持つ。
+        ///
+        /// 移行期間中は nullable。backfill 完了から本カラムを書くコードのロールアウト完了までの
+        /// 窓で旧コードが作った行は NULL になるため、絞り込みの有効化（リリース 3）と
+        /// NOT NULL 化（リリース 4）は別リリースに分ける。リリース 2 の時点では書くだけで読まない。
+        /// </summary>
+        [Column("client_id")]
+        public int? ClientId { get; set; }
+
         public B2BUser? B2BUser { get; set; }
+
+        public Client? Client { get; set; }
     }
 }

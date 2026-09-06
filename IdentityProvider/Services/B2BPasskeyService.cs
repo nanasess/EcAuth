@@ -551,6 +551,52 @@ namespace IdentityProvider.Services
                     };
                 }
 
+                // セッションとリクエスト元 Client の束縛検証
+                //
+                // コントローラーは request.ClientId で Client を認証するが、チャレンジセッションが
+                // その Client のものであることは検証していない。ここで突合しないと、別 Client が
+                // 発行したセッションを自分の client_secret で verify に持ち込め、そのセッションの
+                // Subject に攻撃者の認証器を登録できてしまう（＝当該アカウントの乗っ取り）。
+                // 登録トークン経路はコントローラー側で BoundSessionId と突合済みだが、
+                // client_secret 経路には束縛が無い。認証側（VerifyAuthenticationAsync）は同じ検証を
+                // 実施済みで、登録側だけが欠けていた。
+                //
+                // 注: GetChallengeBySessionIdAsync は Client / Organization を Include 済みだが、
+                // ここでは navigation に依存せず明示的に引く。テストは challenge をモックで返すため
+                // navigation が null になり、依存すると本番だけ通る経路が生まれてテストで守れない。
+                Client? requestingClient;
+                using (TimingScope.Begin("session_client_verify"))
+                {
+                    requestingClient = await _context.Clients
+                        .IgnoreQueryFilters()
+                        .ExcludeDeletedOrganizations()
+                        .FirstOrDefaultAsync(c => c.ClientId == request.ClientId);
+                }
+
+                if (requestingClient == null)
+                {
+                    _logger.LogWarning(
+                        PasskeyVerifyFailedLogTemplate,
+                        request.ClientId, request.SessionId, "client_not_found", "Client not found");
+                    return new IB2BPasskeyService.RegistrationVerifyResult
+                    {
+                        Success = false,
+                        ErrorMessage = "Client not found"
+                    };
+                }
+
+                if (requestingClient.Id != challenge.ClientId)
+                {
+                    _logger.LogWarning(
+                        PasskeyVerifyFailedLogTemplate,
+                        request.ClientId, request.SessionId, "session_client_mismatch", "Session was not issued for this client");
+                    return new IB2BPasskeyService.RegistrationVerifyResult
+                    {
+                        Success = false,
+                        ErrorMessage = "Session does not belong to this client"
+                    };
+                }
+
                 // GetChallengeBySessionIdAsync で既に Client.Organization を Include 済み
                 var rpName = challenge.Client?.Organization?.Name ?? "EcAuth"; // フォールバック
 
@@ -611,6 +657,11 @@ namespace IdentityProvider.Services
                 var credential = new B2BPasskeyCredential
                 {
                     B2BSubject = challenge.Subject!,
+                    // 発行元 Client（EcAuthDocs#110 リリース 2）。challenge は options 発行時に
+                    // client_id で認証済みの Client と紐づいており、上の束縛検証でリクエスト元と
+                    // 一致することを確認済みのため、ここで決定的に書ける。
+                    // リリース 2 では書くだけで読まない（allowCredentials の絞り込みはリリース 3）。
+                    ClientId = challenge.ClientId,
                     CredentialId = result.Id,
                     PublicKey = result.PublicKey,
                     SignCount = (uint)result.SignCount,

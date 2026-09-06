@@ -1152,6 +1152,163 @@ namespace IdentityProvider.Test.Services
                 .FirstOrDefaultAsync(c => c.B2BSubject == TestB2BSubject);
             Assert.NotNull(saved);
             Assert.Equal("MacBook Pro", saved.DeviceName);
+            // 発行元 Client が記録される（EcAuthDocs#110 リリース 2）。
+            Assert.Equal(challenge.ClientId, saved.ClientId);
+        }
+
+        [Fact]
+        public async Task VerifyRegistrationAsync_SecondClientInSameOrganization_ShouldRecordRequestingClientAsIssuer()
+        {
+            // 同一 Organization に 2 つ目の Client がぶら下がる構成（EcAuthDocs#110 が成立させたい形）で、
+            // 発行元が「リクエストを処理した Client」として記録されることを確認する。
+            // Organization ではなく Client 単位で記録されないと、リリース 3 の allowCredentials
+            // 絞り込み（#110 の問題 4）が成立しない。
+            var secondClient = new Client
+            {
+                Id = 2,
+                ClientId = "second-client-id",
+                ClientSecret = "second-secret",
+                AppName = "同一組織の別アプリ",
+                OrganizationId = 1,
+                AllowedRpIds = new List<string> { "shop.example.com" }
+            };
+            _context.Clients.Add(secondClient);
+            await _context.SaveChangesAsync();
+
+            var challenge = new WebAuthnChallenge
+            {
+                Id = 2,
+                SessionId = "session-second",
+                Challenge = "dGVzdC1jaGFsbGVuZ2U",
+                Type = "registration",
+                UserType = "b2b",
+                Subject = TestB2BSubject,
+                RpId = "shop.example.com",
+                ClientId = secondClient.Id,
+                ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(5)
+            };
+
+            _mockChallengeService.Setup(x => x.GetChallengeBySessionIdAsync("session-second"))
+                .ReturnsAsync(challenge);
+
+            var credentialIdBytes = Encoding.UTF8.GetBytes("second-credential-id");
+            var request = new IB2BPasskeyService.RegistrationVerifyRequest
+            {
+                SessionId = "session-second",
+                ClientId = "second-client-id",
+                AttestationResponse = new AuthenticatorAttestationRawResponse
+                {
+                    Id = WebEncoders.Base64UrlEncode(credentialIdBytes),
+                    RawId = credentialIdBytes,
+                    Type = PublicKeyCredentialType.PublicKey,
+                    Response = new AuthenticatorAttestationRawResponse.AttestationResponse
+                    {
+                        AttestationObject = Encoding.UTF8.GetBytes("attestation"),
+                        ClientDataJson = Encoding.UTF8.GetBytes("client-data")
+                    }
+                },
+                DeviceName = "別アプリの端末"
+            };
+
+            _mockFido2.Setup(x => x.MakeNewCredentialAsync(
+                It.IsAny<MakeNewCredentialParams>(),
+                It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new RegisteredPublicKeyCredential
+                {
+                    Id = credentialIdBytes,
+                    PublicKey = Encoding.UTF8.GetBytes("public-key"),
+                    SignCount = 0,
+                    AaGuid = Guid.NewGuid(),
+                    AttestationObject = Encoding.UTF8.GetBytes("attestation"),
+                    AttestationClientDataJson = Encoding.UTF8.GetBytes("client-data")
+                });
+
+            _mockChallengeService.Setup(x => x.ConsumeChallengeAsync("session-second"))
+                .ReturnsAsync(true);
+
+            // Act
+            var result = await _service.VerifyRegistrationAsync(request);
+
+            // Assert
+            Assert.True(result.Success);
+
+            var saved = await _context.B2BPasskeyCredentials
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(c => c.CredentialId == credentialIdBytes);
+            Assert.NotNull(saved);
+            // 1 つ目の Client（Id=1）ではなく、リクエストを処理した 2 つ目の Client が入る。
+            Assert.Equal(secondClient.Id, saved.ClientId);
+        }
+
+        [Fact]
+        public async Task VerifyRegistrationAsync_SessionIssuedForAnotherClient_ShouldReturnFailure()
+        {
+            // 別 Client が発行したセッションを、自分の client_id で verify に持ち込めないことを確認する。
+            // 塞がないと、そのセッションの Subject に攻撃者の認証器を登録できてしまう
+            // （認証側 VerifyAuthenticationAsync は同じ検証を実施済み）。
+            var otherClient = new Client
+            {
+                Id = 2,
+                ClientId = "other-client-id",
+                ClientSecret = "other-secret",
+                AppName = "セッションを発行した別アプリ",
+                OrganizationId = 1,
+                AllowedRpIds = new List<string> { "shop.example.com" }
+            };
+            _context.Clients.Add(otherClient);
+            await _context.SaveChangesAsync();
+
+            var challenge = new WebAuthnChallenge
+            {
+                Id = 3,
+                SessionId = "session-other-client",
+                Challenge = "dGVzdC1jaGFsbGVuZ2U",
+                Type = "registration",
+                UserType = "b2b",
+                Subject = TestB2BSubject,
+                RpId = "shop.example.com",
+                ClientId = otherClient.Id,
+                ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(5)
+            };
+
+            _mockChallengeService.Setup(x => x.GetChallengeBySessionIdAsync("session-other-client"))
+                .ReturnsAsync(challenge);
+
+            var credentialIdBytes = Encoding.UTF8.GetBytes("hijacked-credential-id");
+            var request = new IB2BPasskeyService.RegistrationVerifyRequest
+            {
+                SessionId = "session-other-client",
+                // セッションを発行していない Client（自身の client_secret では認証を通っている想定）
+                ClientId = "test-client-id",
+                AttestationResponse = new AuthenticatorAttestationRawResponse
+                {
+                    Id = WebEncoders.Base64UrlEncode(credentialIdBytes),
+                    RawId = credentialIdBytes,
+                    Type = PublicKeyCredentialType.PublicKey,
+                    Response = new AuthenticatorAttestationRawResponse.AttestationResponse
+                    {
+                        AttestationObject = Encoding.UTF8.GetBytes("attestation"),
+                        ClientDataJson = Encoding.UTF8.GetBytes("client-data")
+                    }
+                },
+                DeviceName = "攻撃者の端末"
+            };
+
+            // Act
+            var result = await _service.VerifyRegistrationAsync(request);
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal("Session does not belong to this client", result.ErrorMessage);
+
+            // WebAuthn 検証まで到達しない
+            _mockFido2.Verify(
+                x => x.MakeNewCredentialAsync(It.IsAny<MakeNewCredentialParams>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+
+            // クレデンシャルは保存されず、チャレンジも消費されない
+            Assert.Empty(await _context.B2BPasskeyCredentials.IgnoreQueryFilters().ToListAsync());
+            _mockChallengeService.Verify(x => x.ConsumeChallengeAsync(It.IsAny<string>()), Times.Never);
         }
 
         [Fact]
