@@ -437,8 +437,41 @@ namespace IdentityProvider.Services
                 //     UpdateAsync の間に別ユーザーが割り込む極めて狭い race のための保険として残す。
                 //     この経路では identity 行もトランザクションごとロールバックされるため、
                 //     「identity だけ入って旧カラムは旧値のまま」という中途半端な状態は残らない。
-                var owner = await _userService.GetUnclaimedByExternalIdAsync(
-                    requestedExternalId, organizationId, issuerKey);
+                //
+                // 再確認クエリの前に必ずトランザクションを破棄する。デッドロック被害など
+                // トランザクションを終了させる障害では、明示的トランザクションが既に使用不能に
+                // なっており、同じコンテキストで投げたクエリが "transaction has completed" で
+                // 失敗して元の DbUpdateException を覆い隠す（＝過渡障害の再スローも衝突判定も
+                // 機能しなくなる）。
+                try
+                {
+                    await transaction.RollbackAsync();
+                }
+                catch (Exception rollbackEx)
+                {
+                    // 既にトランザクションが終了している場合はここに来る。破棄が目的なので続行してよい。
+                    _logger.LogDebug(
+                        rollbackEx,
+                        "ExternalId 同期の失敗後、トランザクションのロールバックに失敗しました: Subject={Subject}",
+                        user.Subject);
+                }
+
+                B2BUser? owner = null;
+                try
+                {
+                    owner = await _userService.GetUnclaimedByExternalIdAsync(
+                        requestedExternalId, organizationId, issuerKey);
+                }
+                catch (Exception probeEx)
+                {
+                    // 再確認自体が失敗した場合は 409 か否かを判定できない。元の DbUpdateException を
+                    // そのまま伝えるため、ここでは握って抜ける（下の throw; で ex が再スローされる）。
+                    _logger.LogWarning(
+                        probeEx,
+                        "ExternalId 衝突の再確認に失敗しました: Subject={Subject}, OrganizationId={OrganizationId}",
+                        user.Subject, organizationId);
+                }
+
                 if (owner != null
                     && !string.Equals(owner.Subject, user.Subject, StringComparison.Ordinal))
                 {
