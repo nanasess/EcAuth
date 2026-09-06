@@ -357,10 +357,11 @@ namespace IdentityProvider.Services
                 // ただし別の発行元が保有しているユーザーは「同一ハッシュの別人」として共存が正しいので
                 // 衝突とみなさない（(organization_id, external_id) の一意制約は EcAuthDocs#110 で外した）。
                 //
-                // このチェックは必ず EnsureIdentityAsync より前に行う。EnsureIdentityAsync は内部で
-                // SaveChangesAsync して即コミットするため、identity を先に入れてから 409 を投げると
-                // 挿入済みの行だけが残り、以降 GetByIdentityAsync が「登録を拒否した subject」に
-                // 解決してしまう（identity 側は衝突していないので EnsureIdentityAsync は成功する）。
+                // このチェックは EnsureIdentityAsync より前に行う。identity を先に入れてから
+                // 409 を投げると、以降 GetByIdentityAsync が「登録を拒否した subject」に解決して
+                // しまう（identity 側は衝突していないので EnsureIdentityAsync は成功する）。
+                // 現在は後続の書き込みごとトランザクションで包んでいるため挿入済みの行は
+                // ロールバックされるが、409 の判定を書き込み前に確定させる意味でこの順序を保つ。
                 var conflictingUser = await _userService.GetUnclaimedByExternalIdAsync(
                     requestedExternalId, organizationId, issuerKey);
                 if (conflictingUser != null
@@ -372,14 +373,24 @@ namespace IdentityProvider.Services
                 }
             }
 
+            // 二重書き（b2b_user_identity と b2b_user.external_id）は同一トランザクションで行う。
+            // EnsureIdentityAsync と UpdateAsync はそれぞれ内部で SaveChangesAsync するため、
+            // 包まないと後段の失敗時に identity 行だけがコミット済みで残る。二重書きが生きている
+            // 移行期間中はローリングデプロイで旧カラムを読む旧インスタンスが同居しうるため、
+            // その状態は「新コードは新しい external_id で解決するが、旧インスタンスは旧値のまま」
+            // という不整合になる。CLAUDE.md「マイグレーションのデプロイ順序」の二重書き要件。
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
             // 正となる置き場（b2b_user_identity）を更新する。同一発行元で別人が保有していれば
-            // ここで ExternalIdConflictException が飛び、旧カラムには手を付けない。
+            // ここで ExternalIdConflictException が飛び、トランザクションごと破棄されるため
+            // 旧カラム側にも変更は残らない。
             // external_id が変わっていない場合も呼ぶ（移行前ユーザーの identity 行をこの機会に作る）。
             await _userService.EnsureIdentityAsync(
                 user.Subject, issuerKey, requestedExternalId, issuerClientId);
 
             if (!isExternalIdChanged)
             {
+                await transaction.CommitAsync();
                 return user;
             }
 
@@ -401,9 +412,16 @@ namespace IdentityProvider.Services
                     ExternalId = requestedExternalId
                 });
                 // 事前に GetBySubjectAsync で取得済みの user の subject で呼んでいるため、
-                // 通常 null は返らない。並行削除等で null になった場合は silent 失敗を避けて例外化。
-                return updated ?? throw new InvalidOperationException(
-                    $"UpdateAsync returned null while syncing ExternalId for Subject '{user.Subject}'.");
+                // 通常 null は返らない。並行削除等で null になった場合は silent 失敗を避けて例外化
+                // する（トランザクションは Dispose 時にロールバックされ identity 行も残らない）。
+                if (updated == null)
+                {
+                    throw new InvalidOperationException(
+                        $"UpdateAsync returned null while syncing ExternalId for Subject '{user.Subject}'.");
+                }
+
+                await transaction.CommitAsync();
+                return updated;
             }
             catch (DbUpdateException ex)
             {
@@ -417,10 +435,43 @@ namespace IdentityProvider.Services
                 // 注: (organization_id, external_id) の一意制約は EcAuthDocs#110 で外したため、
                 //     旧カラムの重複を理由にこの経路へ来ることは無くなった。先行チェックと
                 //     UpdateAsync の間に別ユーザーが割り込む極めて狭い race のための保険として残す。
-                //     この経路では identity 行が既にコミット済みだが、その行は「今回同期しようとした
-                //     正しい対応」であり、後続の解決先も同じ user になるため矛盾は生じない。
-                var owner = await _userService.GetUnclaimedByExternalIdAsync(
-                    requestedExternalId, organizationId, issuerKey);
+                //     この経路では identity 行もトランザクションごとロールバックされるため、
+                //     「identity だけ入って旧カラムは旧値のまま」という中途半端な状態は残らない。
+                //
+                // 再確認クエリの前に必ずトランザクションを破棄する。デッドロック被害など
+                // トランザクションを終了させる障害では、明示的トランザクションが既に使用不能に
+                // なっており、同じコンテキストで投げたクエリが "transaction has completed" で
+                // 失敗して元の DbUpdateException を覆い隠す（＝過渡障害の再スローも衝突判定も
+                // 機能しなくなる）。
+                try
+                {
+                    await transaction.RollbackAsync();
+                }
+                catch (Exception rollbackEx)
+                {
+                    // 既にトランザクションが終了している場合はここに来る。破棄が目的なので続行してよい。
+                    _logger.LogDebug(
+                        rollbackEx,
+                        "ExternalId 同期の失敗後、トランザクションのロールバックに失敗しました: Subject={Subject}",
+                        user.Subject);
+                }
+
+                B2BUser? owner = null;
+                try
+                {
+                    owner = await _userService.GetUnclaimedByExternalIdAsync(
+                        requestedExternalId, organizationId, issuerKey);
+                }
+                catch (Exception probeEx)
+                {
+                    // 再確認自体が失敗した場合は 409 か否かを判定できない。元の DbUpdateException を
+                    // そのまま伝えるため、ここでは握って抜ける（下の throw; で ex が再スローされる）。
+                    _logger.LogWarning(
+                        probeEx,
+                        "ExternalId 衝突の再確認に失敗しました: Subject={Subject}, OrganizationId={OrganizationId}",
+                        user.Subject, organizationId);
+                }
+
                 if (owner != null
                     && !string.Equals(owner.Subject, user.Subject, StringComparison.Ordinal))
                 {

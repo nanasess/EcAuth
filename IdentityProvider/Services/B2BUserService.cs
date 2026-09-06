@@ -283,11 +283,29 @@ namespace IdentityProvider.Services
                 // 実状態で再確認する。SQL エラーコード判定ではなく所有者の有無で判定することで
                 // DB プロバイダー非依存に race を検出できる。それ以外の障害（タイムアウト・接続断・
                 // 別制約違反）は握り潰さず再スローする。
-                var owner = await _context.B2BUserIdentities
-                    .IgnoreQueryFilters()
-                    .Where(i => i.IssuerKey == issuerKey && i.ExternalId == externalIdHash)
-                    .Select(i => i.B2BSubject)
-                    .FirstOrDefaultAsync();
+                //
+                // 呼び出し元がトランザクションを張っている場合、SaveChangesAsync の失敗内容に
+                // よってはそのトランザクションが既に使用不能になっている（デッドロック被害など）。
+                // その状態でこの再確認クエリを投げると "transaction has completed" 等で失敗し、
+                // 元の DbUpdateException を覆い隠すため、再確認の失敗は握って元例外を再スローする。
+                // トランザクションの破棄は所有者である呼び出し元の責務なのでここでは行わない。
+                string? owner = null;
+                try
+                {
+                    owner = await _context.B2BUserIdentities
+                        .IgnoreQueryFilters()
+                        .Where(i => i.IssuerKey == issuerKey && i.ExternalId == externalIdHash)
+                        .Select(i => i.B2BSubject)
+                        .FirstOrDefaultAsync();
+                }
+                catch (Exception probeEx)
+                {
+                    // race かどうかを判定できないため、下の throw; で元の DbUpdateException を伝える。
+                    _logger.LogWarning(
+                        probeEx,
+                        "B2BUserIdentity の重複再確認に失敗しました: Subject={Subject}, IssuerKey={IssuerKey}",
+                        subject, issuerKey);
+                }
 
                 if (owner == null)
                 {
