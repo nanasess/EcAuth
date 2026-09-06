@@ -1858,6 +1858,136 @@ namespace IdentityProvider.Test.Services
         }
 
         /// <summary>
+        /// b2b_subject 指定経路は、発行元が別 Client のクレデンシャルを候補から外す
+        /// （EcAuthDocs#110 問題 4 / リリース 3）。同一ドメイン同居では RP ID が一致するため、
+        /// 絞らないと別アプリの管理者パスキーがログイン候補に出る。
+        /// 発行元 NULL（リリース 2 の窓で旧コードが作った行）は候補に残す。
+        /// </summary>
+        [Fact]
+        public async Task CreateAuthenticationOptionsAsync_WithSubject_ShouldExcludeCredentialsOfAnotherIssuer()
+        {
+            // Arrange: 同一ユーザーに 3 種類のクレデンシャル（自 Client / 別 Client / 発行元未設定）
+            var otherClient = new Client
+            {
+                Id = 2,
+                ClientId = "other-client-id",
+                ClientSecret = "other-secret",
+                AppName = "同一組織の別アプリ",
+                OrganizationId = 1,
+                AllowedRpIds = new List<string> { "shop.example.com" }
+            };
+            _context.Clients.Add(otherClient);
+
+            var ownCredentialId = Encoding.UTF8.GetBytes("own-issuer-credential");
+            var otherCredentialId = Encoding.UTF8.GetBytes("other-issuer-credential");
+            var legacyCredentialId = Encoding.UTF8.GetBytes("legacy-null-issuer-credential");
+            _context.B2BPasskeyCredentials.AddRange(
+                NewCredential(TestB2BSubject, ownCredentialId, clientId: 1),
+                NewCredential(TestB2BSubject, otherCredentialId, clientId: otherClient.Id),
+                NewCredential(TestB2BSubject, legacyCredentialId, clientId: null));
+            await _context.SaveChangesAsync();
+
+            IWebAuthnChallengeService.ChallengeRequest? capturedChallengeRequest = null;
+            _mockChallengeService.Setup(x => x.GenerateChallengeAsync(It.IsAny<IWebAuthnChallengeService.ChallengeRequest>()))
+                .Callback<IWebAuthnChallengeService.ChallengeRequest>(req => capturedChallengeRequest = req)
+                .ReturnsAsync(new IWebAuthnChallengeService.ChallengeResult
+                {
+                    SessionId = "issuer-filter-session",
+                    Challenge = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes("auth-challenge")),
+                    ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(5)
+                });
+
+            // Act
+            var result = await _service.CreateAuthenticationOptionsAsync(
+                new IB2BPasskeyService.AuthenticationOptionsRequest
+                {
+                    ClientId = "test-client-id",
+                    RpId = "shop.example.com",
+                    B2BSubject = TestB2BSubject
+                });
+
+            // Assert: 自 Client 発行と発行元 NULL のみが候補に入る
+            var issued = result.Options.AllowCredentials!
+                .Select(c => WebEncoders.Base64UrlEncode(c.Id))
+                .Order()
+                .ToList();
+            Assert.Equal(
+                new[]
+                {
+                    WebEncoders.Base64UrlEncode(ownCredentialId),
+                    WebEncoders.Base64UrlEncode(legacyCredentialId)
+                }.Order(),
+                issued);
+
+            // チャレンジへの束縛も同じ一覧であること
+            Assert.NotNull(capturedChallengeRequest);
+            Assert.Equal(issued, capturedChallengeRequest.AllowedCredentialIds!.Order());
+        }
+
+        /// <summary>
+        /// b2b_subject 未指定経路（Organization 内の全ユーザーを候補にする経路。#110 問題 4 の本丸）
+        /// でも、発行元が別 Client のクレデンシャルを候補から外す。
+        /// </summary>
+        [Fact]
+        public async Task CreateAuthenticationOptionsAsync_WithoutSubject_ShouldExcludeCredentialsOfAnotherIssuer()
+        {
+            // Arrange: 同一 Organization の別ユーザーが、別 Client 発行のクレデンシャルを持つ
+            var otherClient = new Client
+            {
+                Id = 2,
+                ClientId = "other-client-id",
+                ClientSecret = "other-secret",
+                AppName = "同一ドメインに同居する別アプリ",
+                OrganizationId = 1,
+                AllowedRpIds = new List<string> { "shop.example.com" }
+            };
+            _context.Clients.Add(otherClient);
+
+            _context.B2BUsers.Add(new B2BUser
+            {
+                Subject = TestB2BSubject2,
+                ExternalId = ExternalIdHasher.Hash("staff@example.com"),
+                UserType = "staff",
+                OrganizationId = 1,
+                Organization = _organization
+            });
+
+            var ownCredentialId = Encoding.UTF8.GetBytes("eccube-admin-credential");
+            var otherCredentialId = Encoding.UTF8.GetBytes("wordpress-admin-credential");
+            _context.B2BPasskeyCredentials.AddRange(
+                NewCredential(TestB2BSubject, ownCredentialId, clientId: 1),
+                NewCredential(TestB2BSubject2, otherCredentialId, clientId: otherClient.Id));
+            await _context.SaveChangesAsync();
+
+            IWebAuthnChallengeService.ChallengeRequest? capturedChallengeRequest = null;
+            _mockChallengeService.Setup(x => x.GenerateChallengeAsync(It.IsAny<IWebAuthnChallengeService.ChallengeRequest>()))
+                .Callback<IWebAuthnChallengeService.ChallengeRequest>(req => capturedChallengeRequest = req)
+                .ReturnsAsync(new IWebAuthnChallengeService.ChallengeResult
+                {
+                    SessionId = "issuer-filter-session-2",
+                    Challenge = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes("auth-challenge")),
+                    ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(5)
+                });
+
+            // Act
+            var result = await _service.CreateAuthenticationOptionsAsync(
+                new IB2BPasskeyService.AuthenticationOptionsRequest
+                {
+                    ClientId = "test-client-id",
+                    RpId = "shop.example.com",
+                    B2BSubject = null
+                });
+
+            // Assert: 別アプリの管理者パスキーは候補に出ない
+            var issued = result.Options.AllowCredentials!
+                .Select(c => WebEncoders.Base64UrlEncode(c.Id))
+                .ToList();
+            Assert.Equal(new[] { WebEncoders.Base64UrlEncode(ownCredentialId) }, issued);
+            Assert.NotNull(capturedChallengeRequest);
+            Assert.Equal(issued, capturedChallengeRequest.AllowedCredentialIds);
+        }
+
+        /// <summary>
         /// Organization 未設定の Client は Organization スコープを判定できないため、
         /// options 発行前に拒否する（登録側 / verify 側と同じ扱い）。
         /// </summary>
@@ -2409,6 +2539,78 @@ namespace IdentityProvider.Test.Services
         }
 
         /// <summary>
+        /// 兄弟 Client が発行したクレデンシャルは、allowCredentials が空のセッション
+        /// （discoverable credential フロー）で提示されても認証を通さない
+        /// （EcAuthDocs#110 問題 4 / リリース 3）。
+        ///
+        /// options 側の絞り込みだけでは、絞り込んだ結果が空になった場合に WebAuthn の
+        /// 「制限なしフロー」になり、§7.2 Step 5 の照合も空の場合は適用されないため
+        /// 素通りする。同一 Organization なので Organization 検証でも捕まらない。
+        /// </summary>
+        [Fact]
+        public async Task VerifyAuthenticationAsync_CredentialIssuedByAnotherClient_ShouldReturnFailure()
+        {
+            // Arrange: 同一 Organization・同一 RP ID の別 Client（同一ドメインに同居する WordPress 等）
+            var siblingClient = new Client
+            {
+                Id = 2,
+                ClientId = "sibling-client-id",
+                ClientSecret = "sibling-secret",
+                AppName = "同一ドメインに同居する別アプリ",
+                OrganizationId = 1,
+                AllowedRpIds = new List<string> { "shop.example.com" }
+            };
+            _context.Clients.Add(siblingClient);
+
+            var credentialId = Encoding.UTF8.GetBytes("sibling-issued-credential");
+            _context.B2BPasskeyCredentials.Add(
+                NewCredential(TestB2BSubject, credentialId, clientId: siblingClient.Id));
+            await _context.SaveChangesAsync();
+
+            // Step 5 / Step 6 では捕まらない状況（allowCredentials 空 + ユーザー未確定）を作る
+            var challenge = NewAuthenticationChallenge("sibling-issuer-session", subject: null);
+            challenge.AllowedCredentialIds = new List<string>();
+            SetupChallenge(challenge);
+            SetupSuccessfulAssertion(challenge.SessionId, signCount: 1);
+
+            // Act: 自 Client（Id=1）のセッションで、兄弟 Client 発行のクレデンシャルを提示
+            var result = await _service.VerifyAuthenticationAsync(
+                NewVerifyRequest(challenge.SessionId, "test-client-id", credentialId));
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal("Credential was not issued for this client", result.ErrorMessage);
+        }
+
+        /// <summary>
+        /// 発行元が未記録（NULL）のクレデンシャルは拒否しない。リリース 2 の backfill 完了から
+        /// ロールアウト完了までの窓で旧コードが作った行が該当し、締め出すとログイン不能になる。
+        /// この特例はリリース 4（NOT NULL 化）で除去する。
+        /// </summary>
+        [Fact]
+        public async Task VerifyAuthenticationAsync_CredentialWithoutIssuer_ShouldSucceed()
+        {
+            // Arrange
+            var credentialId = Encoding.UTF8.GetBytes("legacy-null-issuer-credential");
+            _context.B2BPasskeyCredentials.Add(
+                NewCredential(TestB2BSubject, credentialId, clientId: null));
+            await _context.SaveChangesAsync();
+
+            var challenge = NewAuthenticationChallenge("null-issuer-session", subject: null);
+            challenge.AllowedCredentialIds = new List<string>();
+            SetupChallenge(challenge);
+            SetupSuccessfulAssertion(challenge.SessionId, signCount: 1);
+
+            // Act
+            var result = await _service.VerifyAuthenticationAsync(
+                NewVerifyRequest(challenge.SessionId, "test-client-id", credentialId));
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.Equal(TestB2BSubject, result.B2BSubject);
+        }
+
+        /// <summary>
         /// 別 Client が発行したセッションを自分の client_id で verify に持ち込めない。
         /// コントローラーは request.ClientId で Client を認証するが、セッションが
         /// その Client のものであることは検証していないため、サービス側で突合する。
@@ -2470,11 +2672,12 @@ namespace IdentityProvider.Test.Services
 
         #region §7.2 検証テスト用ヘルパー
 
-        private B2BPasskeyCredential NewCredential(string b2bSubject, byte[] credentialId) =>
+        private B2BPasskeyCredential NewCredential(string b2bSubject, byte[] credentialId, int? clientId = null) =>
             new B2BPasskeyCredential
             {
                 B2BSubject = b2bSubject,
                 CredentialId = credentialId,
+                ClientId = clientId,
                 PublicKey = Encoding.UTF8.GetBytes("public-key"),
                 SignCount = 0,
                 AaGuid = Guid.NewGuid()
