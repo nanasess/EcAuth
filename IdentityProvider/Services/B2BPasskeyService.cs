@@ -766,7 +766,10 @@ namespace IdentityProvider.Services
             // 許可されるクレデンシャルを取得
             //
             // 発行元（b2b_passkey_credential.client_id）でリクエスト元 Client に絞る
-            // （EcAuthDocs#110 問題 4 / リリース 3）。同一ドメインに EC-CUBE と WordPress が
+            // （EcAuthDocs#110 問題 4 / リリース 3）。これは候補提示の絞り込みであり、境界の強制は
+            // VerifyAuthenticationAsync の発行元 Client 検証が担う（絞り込み結果が空になると
+            // discoverable フローになり、ここだけでは兄弟 Client のクレデンシャルを止められない）。
+            // 同一ドメインに EC-CUBE と WordPress が
             // 同居する構成では両 Client の RP ID が一致するため、絞らないと
             // 「WordPress の管理者パスキーが EC-CUBE 管理画面のログイン候補に出る」。
             // Organization での絞り込みは 1 org : 複数 Client を成立させる本 issue の目的上
@@ -1076,6 +1079,29 @@ namespace IdentityProvider.Services
                     {
                         Success = false,
                         ErrorMessage = "Credential does not belong to this organization"
+                    };
+                }
+
+                // 発行元 Client 検証（EcAuthDocs#110 問題 4 / リリース 3）
+                //
+                // options 側で allowCredentials を絞るだけでは境界にならない。絞り込んだ結果が空に
+                // なると WebAuthn では「制限なしの discoverable credential フロー」になり、上の
+                // §7.2 Step 5 の照合も仕様どおり allowCredentials が空の場合は適用されない。その
+                // 状態では兄弟 Client が発行したクレデンシャルをブラウザが提示でき、直上の
+                // Organization 検証は同一 Organization なので素通りする。
+                // つまり絞り込みは候補提示の話であり、境界の強制はここで行う必要がある。
+                //
+                // 発行元 NULL はリリース 2 のロールアウト窓で旧コードが作った行なので拒否しない
+                // （options 側の NULL 特例と対になる）。リリース 4 の NOT NULL 化で特例ごと除去する。
+                if (credential.ClientId != null && credential.ClientId != client.Id)
+                {
+                    _logger.LogWarning(
+                        PasskeyVerifyFailedLogTemplate,
+                        request.ClientId, request.SessionId, "credential_issuer_mismatch", "Credential was issued by another client");
+                    return new IB2BPasskeyService.AuthenticationVerifyResult
+                    {
+                        Success = false,
+                        ErrorMessage = "Credential was not issued for this client"
                     };
                 }
 

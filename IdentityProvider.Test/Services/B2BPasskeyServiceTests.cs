@@ -2539,6 +2539,78 @@ namespace IdentityProvider.Test.Services
         }
 
         /// <summary>
+        /// 兄弟 Client が発行したクレデンシャルは、allowCredentials が空のセッション
+        /// （discoverable credential フロー）で提示されても認証を通さない
+        /// （EcAuthDocs#110 問題 4 / リリース 3）。
+        ///
+        /// options 側の絞り込みだけでは、絞り込んだ結果が空になった場合に WebAuthn の
+        /// 「制限なしフロー」になり、§7.2 Step 5 の照合も空の場合は適用されないため
+        /// 素通りする。同一 Organization なので Organization 検証でも捕まらない。
+        /// </summary>
+        [Fact]
+        public async Task VerifyAuthenticationAsync_CredentialIssuedByAnotherClient_ShouldReturnFailure()
+        {
+            // Arrange: 同一 Organization・同一 RP ID の別 Client（同一ドメインに同居する WordPress 等）
+            var siblingClient = new Client
+            {
+                Id = 2,
+                ClientId = "sibling-client-id",
+                ClientSecret = "sibling-secret",
+                AppName = "同一ドメインに同居する別アプリ",
+                OrganizationId = 1,
+                AllowedRpIds = new List<string> { "shop.example.com" }
+            };
+            _context.Clients.Add(siblingClient);
+
+            var credentialId = Encoding.UTF8.GetBytes("sibling-issued-credential");
+            _context.B2BPasskeyCredentials.Add(
+                NewCredential(TestB2BSubject, credentialId, clientId: siblingClient.Id));
+            await _context.SaveChangesAsync();
+
+            // Step 5 / Step 6 では捕まらない状況（allowCredentials 空 + ユーザー未確定）を作る
+            var challenge = NewAuthenticationChallenge("sibling-issuer-session", subject: null);
+            challenge.AllowedCredentialIds = new List<string>();
+            SetupChallenge(challenge);
+            SetupSuccessfulAssertion(challenge.SessionId, signCount: 1);
+
+            // Act: 自 Client（Id=1）のセッションで、兄弟 Client 発行のクレデンシャルを提示
+            var result = await _service.VerifyAuthenticationAsync(
+                NewVerifyRequest(challenge.SessionId, "test-client-id", credentialId));
+
+            // Assert
+            Assert.False(result.Success);
+            Assert.Equal("Credential was not issued for this client", result.ErrorMessage);
+        }
+
+        /// <summary>
+        /// 発行元が未記録（NULL）のクレデンシャルは拒否しない。リリース 2 の backfill 完了から
+        /// ロールアウト完了までの窓で旧コードが作った行が該当し、締め出すとログイン不能になる。
+        /// この特例はリリース 4（NOT NULL 化）で除去する。
+        /// </summary>
+        [Fact]
+        public async Task VerifyAuthenticationAsync_CredentialWithoutIssuer_ShouldSucceed()
+        {
+            // Arrange
+            var credentialId = Encoding.UTF8.GetBytes("legacy-null-issuer-credential");
+            _context.B2BPasskeyCredentials.Add(
+                NewCredential(TestB2BSubject, credentialId, clientId: null));
+            await _context.SaveChangesAsync();
+
+            var challenge = NewAuthenticationChallenge("null-issuer-session", subject: null);
+            challenge.AllowedCredentialIds = new List<string>();
+            SetupChallenge(challenge);
+            SetupSuccessfulAssertion(challenge.SessionId, signCount: 1);
+
+            // Act
+            var result = await _service.VerifyAuthenticationAsync(
+                NewVerifyRequest(challenge.SessionId, "test-client-id", credentialId));
+
+            // Assert
+            Assert.True(result.Success);
+            Assert.Equal(TestB2BSubject, result.B2BSubject);
+        }
+
+        /// <summary>
         /// 別 Client が発行したセッションを自分の client_id で verify に持ち込めない。
         /// コントローラーは request.ClientId で Client を認証するが、セッションが
         /// その Client のものであることは検証していないため、サービス側で突合する。
