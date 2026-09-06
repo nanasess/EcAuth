@@ -65,12 +65,13 @@ namespace IdentityProvider.Models
         /// allowCredentials を組むと別アプリの管理者パスキーがログイン候補に出る（#110 の問題 4）。
         /// 発行元で絞れるようにクレデンシャル自身が Client を持つ。
         ///
-        /// 移行期間中は nullable。backfill 完了から本カラムを書くコードのロールアウト完了までの
-        /// 窓で旧コードが作った行は NULL になるため、絞り込みの有効化（リリース 3）と
-        /// NOT NULL 化（リリース 4）は別リリースに分ける。リリース 2 の時点では書くだけで読まない。
+        /// リリース 2 では nullable で追加し、リリース 4（本カラム）で NOT NULL 化した。
+        /// 移行期間中に旧コードが作った NULL 行は backfill と追いつき backfill で解消済み
+        /// （本番実測 2026-09-06: 残存 NULL 0 件）。
         /// </summary>
         [Column("client_id")]
-        public int? ClientId { get; set; }
+        [Required]
+        public int ClientId { get; set; }
 
         public B2BUser? B2BUser { get; set; }
 

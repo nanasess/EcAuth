@@ -766,19 +766,14 @@ namespace IdentityProvider.Services
             // 許可されるクレデンシャルを取得
             //
             // 発行元（b2b_passkey_credential.client_id）でリクエスト元 Client に絞る
-            // （EcAuthDocs#110 問題 4 / リリース 3）。これは候補提示の絞り込みであり、境界の強制は
-            // VerifyAuthenticationAsync の発行元 Client 検証が担う（絞り込み結果が空になると
-            // discoverable フローになり、ここだけでは兄弟 Client のクレデンシャルを止められない）。
-            // 同一ドメインに EC-CUBE と WordPress が
-            // 同居する構成では両 Client の RP ID が一致するため、絞らないと
-            // 「WordPress の管理者パスキーが EC-CUBE 管理画面のログイン候補に出る」。
-            // Organization での絞り込みは 1 org : 複数 Client を成立させる本 issue の目的上
-            // 分離にならない。
+            // （EcAuthDocs#110 問題 4）。同一ドメインに EC-CUBE と WordPress が同居する構成では
+            // 両 Client の RP ID が一致するため、絞らないと「WordPress の管理者パスキーが
+            // EC-CUBE 管理画面のログイン候補に出る」。Organization での絞り込みは
+            // 1 org : 複数 Client を成立させる本 issue の目的上、分離にならない。
             //
-            // NULL は絞り込み対象外（＝候補に含める）。リリース 2 の backfill 完了から
-            // ロールアウト完了までの窓で旧インスタンスが作ったクレデンシャルは発行元が NULL に
-            // なるため、ここで締め出すとそのユーザーがログイン不能になる。この特例は残存 NULL を
-            // 解消して NOT NULL 化するリリース 4 で除去する。
+            // これは候補提示の絞り込みであり、境界の強制は VerifyAuthenticationAsync の
+            // 発行元 Client 検証が担う（絞り込み結果が空になると discoverable フローになり、
+            // ここだけでは兄弟 Client のクレデンシャルを止められない）。
             var allowCredentials = new List<PublicKeyCredentialDescriptor>();
             if (b2bSubject != null)
             {
@@ -794,8 +789,8 @@ namespace IdentityProvider.Services
                     .Where(c => c.B2BSubject == b2bSubject
                         && c.B2BUser != null
                         && c.B2BUser.OrganizationId == client.OrganizationId
-                        // 発行元による絞り込み（EcAuthDocs#110 問題 4 / リリース 3）
-                        && (c.ClientId == null || c.ClientId == client.Id))
+                        // 発行元による絞り込み（EcAuthDocs#110 問題 4 / リリース 3〜4）
+                        && c.ClientId == client.Id)
                     .Select(c => new PublicKeyCredentialDescriptor(
                         PublicKeyCredentialType.PublicKey,
                         c.CredentialId,
@@ -830,8 +825,8 @@ namespace IdentityProvider.Services
                 allowCredentials = await _context.B2BPasskeyCredentials
                     .IgnoreQueryFilters()
                     .Where(c => orgUserSubjects.Contains(c.B2BSubject)
-                        // 発行元による絞り込み（EcAuthDocs#110 問題 4 / リリース 3）
-                        && (c.ClientId == null || c.ClientId == client.Id))
+                        // 発行元による絞り込み（EcAuthDocs#110 問題 4 / リリース 3〜4）
+                        && c.ClientId == client.Id)
                     .Select(c => new PublicKeyCredentialDescriptor(
                         PublicKeyCredentialType.PublicKey,
                         c.CredentialId,
@@ -1082,7 +1077,7 @@ namespace IdentityProvider.Services
                     };
                 }
 
-                // 発行元 Client 検証（EcAuthDocs#110 問題 4 / リリース 3）
+                // 発行元 Client 検証（EcAuthDocs#110 問題 4）
                 //
                 // options 側で allowCredentials を絞るだけでは境界にならない。絞り込んだ結果が空に
                 // なると WebAuthn では「制限なしの discoverable credential フロー」になり、上の
@@ -1090,10 +1085,7 @@ namespace IdentityProvider.Services
                 // 状態では兄弟 Client が発行したクレデンシャルをブラウザが提示でき、直上の
                 // Organization 検証は同一 Organization なので素通りする。
                 // つまり絞り込みは候補提示の話であり、境界の強制はここで行う必要がある。
-                //
-                // 発行元 NULL はリリース 2 のロールアウト窓で旧コードが作った行なので拒否しない
-                // （options 側の NULL 特例と対になる）。リリース 4 の NOT NULL 化で特例ごと除去する。
-                if (credential.ClientId != null && credential.ClientId != client.Id)
+                if (credential.ClientId != client.Id)
                 {
                     _logger.LogWarning(
                         PasskeyVerifyFailedLogTemplate,
