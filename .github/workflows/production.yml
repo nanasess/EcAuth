@@ -357,6 +357,44 @@ jobs:
           # 詳細は ecauth-infrastructure の CLAUDE.md「E2E 用メールボックス」。
           E2E_MAILBOX_TOKEN: op://EcAuth/ecauth-e2e-mailbox/api_token
 
+      # デプロイ直後はコンテナ入れ替え中で最初のリクエストが 10〜25 秒かかり、signup smoke の
+      # waitForURL（20 秒）がサーバー応答より先に切れる（EcAuth#530 / #531 の本番適用で 2 回連続）。
+      # いずれもサーバー側の処理自体は成功しており、テスト側のタイムアウトだけが赤くなっていた。
+      #
+      # テナント解決と EF のクエリプランはホスト（テナント）ごとに温まるため、production だけでなく
+      # signup smoke が使う stg-accounts も叩く。温まりきらなくてもジョブは落とさない
+      # （本来の検証は後続の E2E であり、ここで失敗させると切り分けが減る）。
+      - name: Warm up endpoints
+        if: ${{ !cancelled() }}
+        run: |
+          warm() {
+            url="$1"; label="$2"
+            for i in $(seq 1 12); do
+              start=$(date +%s%3N)
+              # curl の終了状態と HTTP ステータスは別々に見る。`|| echo 000` で受けると
+              # 接続失敗時に -w の "000" と連結されて "000\n000" になり失敗判定をすり抜ける。
+              # 対象は全て正常時 200（/healthz は DB 未接続で 503、/passkey/register は View）
+              # なので、5xx や接続失敗をコールドスタート中に「温まった」とみなさないよう 200 を要求する。
+              if code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 60 "$url"); then
+                curl_ok=true
+              else
+                code=000
+                curl_ok=false
+              fi
+              ms=$(( $(date +%s%3N) - start ))
+              echo "[$label] attempt $i: HTTP $code in ${ms}ms"
+              if [ "$curl_ok" = true ] && [ "$code" = "200" ] && [ "$ms" -lt 2000 ]; then
+                echo "[$label] warmed up"
+                return 0
+              fi
+              sleep 3
+            done
+            echo "[$label] 温まりきりませんでした（続行します）"
+          }
+          warm "https://production.ec-auth.io/healthz" "production/healthz"
+          warm "https://stg-accounts.ec-auth.io/healthz" "stg-accounts/healthz"
+          warm "https://stg-accounts.ec-auth.io/passkey/register" "stg-accounts/passkey-register"
+
       - name: Federation authentication verification
         id: federation_verify
         env:

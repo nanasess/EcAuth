@@ -400,6 +400,7 @@ namespace IdentityProvider.Test.Controllers
             var credential = new B2BPasskeyCredential
             {
                 B2BSubject = testUser.Subject,
+                ClientId = 1,
                 CredentialId = credentialIdBytes,
                 PublicKey = Encoding.UTF8.GetBytes("public-key"),
                 SignCount = 5,
@@ -595,6 +596,7 @@ namespace IdentityProvider.Test.Controllers
             var credential = new B2BPasskeyCredential
             {
                 B2BSubject = testUser.Subject,
+                ClientId = 1,
                 CredentialId = credentialIdBytes,
                 PublicKey = Encoding.UTF8.GetBytes("public-key"),
                 SignCount = 0,
@@ -764,6 +766,7 @@ namespace IdentityProvider.Test.Controllers
                 new B2BPasskeyCredential
                 {
                     B2BSubject = testUser.Subject,
+                    ClientId = 1,
                     CredentialId = Encoding.UTF8.GetBytes("list-cred-1"),
                     PublicKey = Encoding.UTF8.GetBytes("key-1"),
                     SignCount = 5,
@@ -776,6 +779,7 @@ namespace IdentityProvider.Test.Controllers
                 new B2BPasskeyCredential
                 {
                     B2BSubject = testUser.Subject,
+                    ClientId = 1,
                     CredentialId = Encoding.UTF8.GetBytes("list-cred-2"),
                     PublicKey = Encoding.UTF8.GetBytes("key-2"),
                     SignCount = 3,
@@ -827,6 +831,7 @@ namespace IdentityProvider.Test.Controllers
             var credential = new B2BPasskeyCredential
             {
                 B2BSubject = testUser.Subject,
+                ClientId = 1,
                 CredentialId = credentialId,
                 PublicKey = Encoding.UTF8.GetBytes("key"),
                 SignCount = 0,
@@ -950,6 +955,7 @@ namespace IdentityProvider.Test.Controllers
             var cred1 = new B2BPasskeyCredential
             {
                 B2BSubject = user1.Subject,
+                ClientId = 1,
                 CredentialId = Encoding.UTF8.GetBytes("tenant1-cred"),
                 PublicKey = Encoding.UTF8.GetBytes("key-1"),
                 SignCount = 0,
@@ -962,6 +968,7 @@ namespace IdentityProvider.Test.Controllers
             var cred2 = new B2BPasskeyCredential
             {
                 B2BSubject = user2.Subject,
+                ClientId = client2.Id,
                 CredentialId = Encoding.UTF8.GetBytes("tenant2-cred"),
                 PublicKey = Encoding.UTF8.GetBytes("key-2"),
                 SignCount = 0,
@@ -1027,6 +1034,21 @@ namespace IdentityProvider.Test.Controllers
                 UpdatedAt = DateTimeOffset.UtcNow
             };
             _context.Organizations.Add(org2);
+
+            // Organization 3 の Client。cred3 の発行元をここに向けないと、Client 境界の
+            // 検証が Organization 1 の _client 相手になり、テナント越境の確認にならない。
+            var client3 = new Client
+            {
+                Id = 3,
+                ClientId = "client3-id",
+                ClientSecret = "client3-secret",
+                AppName = "第三クライアント",
+                OrganizationId = 3,
+                AllowedRpIds = new List<string> { "shop3.example.com" },
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+            _context.Clients.Add(client3);
             await _context.SaveChangesAsync();
 
             // Organization 1 のユーザー
@@ -1049,6 +1071,7 @@ namespace IdentityProvider.Test.Controllers
             var cred3 = new B2BPasskeyCredential
             {
                 B2BSubject = user3.Subject,
+                ClientId = client3.Id,
                 CredentialId = credentialId,
                 PublicKey = Encoding.UTF8.GetBytes("key-3"),
                 SignCount = 0,

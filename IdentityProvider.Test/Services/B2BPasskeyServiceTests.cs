@@ -1412,6 +1412,7 @@ namespace IdentityProvider.Test.Services
             var credential = new B2BPasskeyCredential
             {
                 B2BSubject = TestB2BSubject,
+                ClientId = 1,
                 CredentialId = Encoding.UTF8.GetBytes("credential-id"),
                 PublicKey = Encoding.UTF8.GetBytes("public-key"),
                 SignCount = 0,
@@ -1475,6 +1476,7 @@ namespace IdentityProvider.Test.Services
                 new B2BPasskeyCredential
                 {
                     B2BSubject = TestB2BSubject,
+                    ClientId = 1,
                     CredentialId = Encoding.UTF8.GetBytes("credential-1"),
                     PublicKey = Encoding.UTF8.GetBytes("public-key-1"),
                     SignCount = 0,
@@ -1483,6 +1485,7 @@ namespace IdentityProvider.Test.Services
                 new B2BPasskeyCredential
                 {
                     B2BSubject = TestB2BSubject2,
+                    ClientId = 1,
                     CredentialId = Encoding.UTF8.GetBytes("credential-2"),
                     PublicKey = Encoding.UTF8.GetBytes("public-key-2"),
                     SignCount = 0,
@@ -1542,6 +1545,7 @@ namespace IdentityProvider.Test.Services
             _context.B2BPasskeyCredentials.Add(new B2BPasskeyCredential
             {
                 B2BSubject = TestB2BSubject,
+                ClientId = 1,
                 CredentialId = Encoding.UTF8.GetBytes("credential-account"),
                 PublicKey = Encoding.UTF8.GetBytes("public-key-account"),
                 SignCount = 0,
@@ -1581,6 +1585,7 @@ namespace IdentityProvider.Test.Services
             var credential = new B2BPasskeyCredential
             {
                 B2BSubject = TestB2BSubject,
+                ClientId = 1,
                 CredentialId = Encoding.UTF8.GetBytes("credential-for-null-subject"),
                 PublicKey = Encoding.UTF8.GetBytes("public-key"),
                 SignCount = 0,
@@ -1660,6 +1665,7 @@ namespace IdentityProvider.Test.Services
             var credential = new B2BPasskeyCredential
             {
                 B2BSubject = TestB2BSubject,
+                ClientId = 1,
                 CredentialId = Encoding.UTF8.GetBytes("credential-id"),
                 PublicKey = Encoding.UTF8.GetBytes("public-key"),
                 SignCount = 0,
@@ -1710,6 +1716,7 @@ namespace IdentityProvider.Test.Services
             var credential = new B2BPasskeyCredential
             {
                 B2BSubject = TestB2BSubject,
+                ClientId = 1,
                 CredentialId = Encoding.UTF8.GetBytes("credential-for-normalize"),
                 PublicKey = Encoding.UTF8.GetBytes("public-key"),
                 SignCount = 0,
@@ -1859,14 +1866,13 @@ namespace IdentityProvider.Test.Services
 
         /// <summary>
         /// b2b_subject 指定経路は、発行元が別 Client のクレデンシャルを候補から外す
-        /// （EcAuthDocs#110 問題 4 / リリース 3）。同一ドメイン同居では RP ID が一致するため、
+        /// （EcAuthDocs#110 問題 4 / リリース 3〜4）。同一ドメイン同居では RP ID が一致するため、
         /// 絞らないと別アプリの管理者パスキーがログイン候補に出る。
-        /// 発行元 NULL（リリース 2 の窓で旧コードが作った行）は候補に残す。
         /// </summary>
         [Fact]
         public async Task CreateAuthenticationOptionsAsync_WithSubject_ShouldExcludeCredentialsOfAnotherIssuer()
         {
-            // Arrange: 同一ユーザーに 3 種類のクレデンシャル（自 Client / 別 Client / 発行元未設定）
+            // Arrange: 同一ユーザーに 2 種類のクレデンシャル（自 Client / 別 Client）
             var otherClient = new Client
             {
                 Id = 2,
@@ -1880,11 +1886,9 @@ namespace IdentityProvider.Test.Services
 
             var ownCredentialId = Encoding.UTF8.GetBytes("own-issuer-credential");
             var otherCredentialId = Encoding.UTF8.GetBytes("other-issuer-credential");
-            var legacyCredentialId = Encoding.UTF8.GetBytes("legacy-null-issuer-credential");
             _context.B2BPasskeyCredentials.AddRange(
                 NewCredential(TestB2BSubject, ownCredentialId, clientId: 1),
-                NewCredential(TestB2BSubject, otherCredentialId, clientId: otherClient.Id),
-                NewCredential(TestB2BSubject, legacyCredentialId, clientId: null));
+                NewCredential(TestB2BSubject, otherCredentialId, clientId: otherClient.Id));
             await _context.SaveChangesAsync();
 
             IWebAuthnChallengeService.ChallengeRequest? capturedChallengeRequest = null;
@@ -1906,22 +1910,15 @@ namespace IdentityProvider.Test.Services
                     B2BSubject = TestB2BSubject
                 });
 
-            // Assert: 自 Client 発行と発行元 NULL のみが候補に入る
+            // Assert: 自 Client 発行のみが候補に入る
             var issued = result.Options.AllowCredentials!
                 .Select(c => WebEncoders.Base64UrlEncode(c.Id))
-                .Order()
                 .ToList();
-            Assert.Equal(
-                new[]
-                {
-                    WebEncoders.Base64UrlEncode(ownCredentialId),
-                    WebEncoders.Base64UrlEncode(legacyCredentialId)
-                }.Order(),
-                issued);
+            Assert.Equal(new[] { WebEncoders.Base64UrlEncode(ownCredentialId) }, issued);
 
             // チャレンジへの束縛も同じ一覧であること
             Assert.NotNull(capturedChallengeRequest);
-            Assert.Equal(issued, capturedChallengeRequest.AllowedCredentialIds!.Order());
+            Assert.Equal(issued, capturedChallengeRequest.AllowedCredentialIds);
         }
 
         /// <summary>
@@ -2035,6 +2032,7 @@ namespace IdentityProvider.Test.Services
             var credential = new B2BPasskeyCredential
             {
                 B2BSubject = TestB2BSubject,
+                ClientId = 1,
                 CredentialId = credentialIdBytes,
                 PublicKey = Encoding.UTF8.GetBytes("public-key"),
                 SignCount = 5,
@@ -2191,6 +2189,7 @@ namespace IdentityProvider.Test.Services
             var credential = new B2BPasskeyCredential
             {
                 B2BSubject = TestB2BSubject,
+                ClientId = 1,
                 CredentialId = credentialIdBytes,
                 PublicKey = Encoding.UTF8.GetBytes("public-key"),
                 SignCount = 3,
@@ -2274,6 +2273,7 @@ namespace IdentityProvider.Test.Services
             var credential = new B2BPasskeyCredential
             {
                 B2BSubject = TestB2BSubject,
+                ClientId = 1,
                 CredentialId = credentialIdBytes,
                 PublicKey = Encoding.UTF8.GetBytes("public-key"),
                 SignCount = 10, // 前回のSignCount
@@ -2583,34 +2583,6 @@ namespace IdentityProvider.Test.Services
         }
 
         /// <summary>
-        /// 発行元が未記録（NULL）のクレデンシャルは拒否しない。リリース 2 の backfill 完了から
-        /// ロールアウト完了までの窓で旧コードが作った行が該当し、締め出すとログイン不能になる。
-        /// この特例はリリース 4（NOT NULL 化）で除去する。
-        /// </summary>
-        [Fact]
-        public async Task VerifyAuthenticationAsync_CredentialWithoutIssuer_ShouldSucceed()
-        {
-            // Arrange
-            var credentialId = Encoding.UTF8.GetBytes("legacy-null-issuer-credential");
-            _context.B2BPasskeyCredentials.Add(
-                NewCredential(TestB2BSubject, credentialId, clientId: null));
-            await _context.SaveChangesAsync();
-
-            var challenge = NewAuthenticationChallenge("null-issuer-session", subject: null);
-            challenge.AllowedCredentialIds = new List<string>();
-            SetupChallenge(challenge);
-            SetupSuccessfulAssertion(challenge.SessionId, signCount: 1);
-
-            // Act
-            var result = await _service.VerifyAuthenticationAsync(
-                NewVerifyRequest(challenge.SessionId, "test-client-id", credentialId));
-
-            // Assert
-            Assert.True(result.Success);
-            Assert.Equal(TestB2BSubject, result.B2BSubject);
-        }
-
-        /// <summary>
         /// 別 Client が発行したセッションを自分の client_id で verify に持ち込めない。
         /// コントローラーは request.ClientId で Client を認証するが、セッションが
         /// その Client のものであることは検証していないため、サービス側で突合する。
@@ -2672,7 +2644,7 @@ namespace IdentityProvider.Test.Services
 
         #region §7.2 検証テスト用ヘルパー
 
-        private B2BPasskeyCredential NewCredential(string b2bSubject, byte[] credentialId, int? clientId = null) =>
+        private B2BPasskeyCredential NewCredential(string b2bSubject, byte[] credentialId, int clientId = 1) =>
             new B2BPasskeyCredential
             {
                 B2BSubject = b2bSubject,
@@ -2748,6 +2720,7 @@ namespace IdentityProvider.Test.Services
                 new B2BPasskeyCredential
                 {
                     B2BSubject = TestB2BSubject,
+                    ClientId = 1,
                     CredentialId = Encoding.UTF8.GetBytes("cred-1"),
                     PublicKey = Encoding.UTF8.GetBytes("key-1"),
                     SignCount = 5,
@@ -2760,6 +2733,7 @@ namespace IdentityProvider.Test.Services
                 new B2BPasskeyCredential
                 {
                     B2BSubject = TestB2BSubject,
+                    ClientId = 1,
                     CredentialId = Encoding.UTF8.GetBytes("cred-2"),
                     PublicKey = Encoding.UTF8.GetBytes("key-2"),
                     SignCount = 3,
@@ -2819,6 +2793,7 @@ namespace IdentityProvider.Test.Services
             var credential = new B2BPasskeyCredential
             {
                 B2BSubject = TestB2BSubject,
+                ClientId = 1,
                 CredentialId = credentialId,
                 PublicKey = Encoding.UTF8.GetBytes("key"),
                 SignCount = 0,
@@ -2859,6 +2834,7 @@ namespace IdentityProvider.Test.Services
             var credential = new B2BPasskeyCredential
             {
                 B2BSubject = "other-user-subject",
+                ClientId = 1,
                 CredentialId = credentialId,
                 PublicKey = Encoding.UTF8.GetBytes("key"),
                 SignCount = 0,
@@ -2895,6 +2871,7 @@ namespace IdentityProvider.Test.Services
                 new B2BPasskeyCredential
                 {
                     B2BSubject = TestB2BSubject,
+                    ClientId = 1,
                     CredentialId = Encoding.UTF8.GetBytes("count-cred-1"),
                     PublicKey = Encoding.UTF8.GetBytes("key-1"),
                     SignCount = 0,
@@ -2903,6 +2880,7 @@ namespace IdentityProvider.Test.Services
                 new B2BPasskeyCredential
                 {
                     B2BSubject = TestB2BSubject,
+                    ClientId = 1,
                     CredentialId = Encoding.UTF8.GetBytes("count-cred-2"),
                     PublicKey = Encoding.UTF8.GetBytes("key-2"),
                     SignCount = 0,
@@ -2911,6 +2889,7 @@ namespace IdentityProvider.Test.Services
                 new B2BPasskeyCredential
                 {
                     B2BSubject = TestB2BSubject,
+                    ClientId = 1,
                     CredentialId = Encoding.UTF8.GetBytes("count-cred-3"),
                     PublicKey = Encoding.UTF8.GetBytes("key-3"),
                     SignCount = 0,
@@ -2966,6 +2945,7 @@ namespace IdentityProvider.Test.Services
                 credentials.Add(new B2BPasskeyCredential
                 {
                     B2BSubject = TestB2BSubject,
+                    ClientId = 1,
                     CredentialId = Encoding.UTF8.GetBytes($"credential-{i}"),
                     PublicKey = Encoding.UTF8.GetBytes($"key-{i}"),
                     SignCount = 0,
@@ -2977,6 +2957,7 @@ namespace IdentityProvider.Test.Services
             credentials.Add(new B2BPasskeyCredential
             {
                 B2BSubject = TestB2BSubject,
+                ClientId = 1,
                 CredentialId = targetCredentialId,
                 PublicKey = Encoding.UTF8.GetBytes("target-key"),
                 SignCount = 10,
@@ -3069,6 +3050,7 @@ namespace IdentityProvider.Test.Services
                 credentials.Add(new B2BPasskeyCredential
                 {
                     B2BSubject = TestB2BSubject,
+                    ClientId = 1,
                     CredentialId = Encoding.UTF8.GetBytes($"delete-cred-{i}"),
                     PublicKey = Encoding.UTF8.GetBytes($"key-{i}"),
                     SignCount = 0,
@@ -3080,6 +3062,7 @@ namespace IdentityProvider.Test.Services
             credentials.Add(new B2BPasskeyCredential
             {
                 B2BSubject = TestB2BSubject,
+                ClientId = 1,
                 CredentialId = targetCredentialId,
                 PublicKey = Encoding.UTF8.GetBytes("target-key"),
                 SignCount = 0,
