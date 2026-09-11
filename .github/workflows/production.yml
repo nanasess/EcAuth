@@ -371,10 +371,19 @@ jobs:
             url="$1"; label="$2"
             for i in $(seq 1 12); do
               start=$(date +%s%3N)
-              code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 60 "$url" || echo 000)
+              # curl の終了状態と HTTP ステータスは別々に見る。`|| echo 000` で受けると
+              # 接続失敗時に -w の "000" と連結されて "000\n000" になり失敗判定をすり抜ける。
+              # 対象は全て正常時 200（/healthz は DB 未接続で 503、/passkey/register は View）
+              # なので、5xx や接続失敗をコールドスタート中に「温まった」とみなさないよう 200 を要求する。
+              if code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 60 "$url"); then
+                curl_ok=true
+              else
+                code=000
+                curl_ok=false
+              fi
               ms=$(( $(date +%s%3N) - start ))
               echo "[$label] attempt $i: HTTP $code in ${ms}ms"
-              if [ "$code" != "000" ] && [ "$ms" -lt 2000 ]; then
+              if [ "$curl_ok" = true ] && [ "$code" = "200" ] && [ "$ms" -lt 2000 ]; then
                 echo "[$label] warmed up"
                 return 0
               fi
