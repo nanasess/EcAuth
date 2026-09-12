@@ -190,7 +190,8 @@ jobs:
         run: dotnet restore IdentityProvider/IdentityProvider.csproj
 
       - name: Build
-        run: dotnet build IdentityProvider/IdentityProvider.csproj --configuration Release --no-restore
+        # /healthz の version に git SHA を埋める（production.yml と同じ。staging でもビルドを識別できるように）。
+        run: dotnet build IdentityProvider/IdentityProvider.csproj --configuration Release --no-restore -p:SourceRevisionId=${{ github.sha }}
 
       - name: Publish
         run: dotnet publish IdentityProvider/IdentityProvider.csproj --configuration Release --no-build --output ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
