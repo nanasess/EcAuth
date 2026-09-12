@@ -43,6 +43,8 @@ namespace IdentityProvider.Test.Data.Seeders
             _context.Organizations.Add(_organization);
 
             // テスト用の Client をセットアップ
+            // 実環境では OrganizationClientSeeder（Order 10）が構成された Client を B2B へ補正してから
+            // 本シーダー（Order 100）が走るため、既定を B2B にしておく。
             _client = new Client
             {
                 Id = 1,
@@ -50,6 +52,7 @@ namespace IdentityProvider.Test.Data.Seeders
                 ClientSecret = "test-secret",
                 AppName = TestAppName,
                 OrganizationId = 1,
+                SubjectType = SubjectType.B2B,
                 AllowedRpIds = new List<string>()
             };
             _context.Clients.Add(_client);
@@ -308,8 +311,6 @@ namespace IdentityProvider.Test.Data.Seeders
 
             Assert.NotNull(user);
             Assert.Equal(subject, user.Subject);
-            // シーダーも external_id を正規化 + ハッシュ化して保持する。
-            Assert.Equal(ExternalIdHasher.Hash(externalId), user.ExternalId);
             Assert.Equal("admin", user.UserType);
             Assert.Equal(_organization.Id, user.OrganizationId);
         }
@@ -319,13 +320,12 @@ namespace IdentityProvider.Test.Data.Seeders
         ///
         /// B2BPasskeyService は認証時に request.client_id から解決した Client で IssuerKey を
         /// 組み立てるため、シーダーが Organization 内の別 B2B Client を選ぶと identity 検索が
-        /// 外れ、毎回フォールバック経路に落ちる。
+        /// 外れ、external_id では解決できなくなる。
         /// </summary>
         [Fact]
         public async Task SeedAsync_ShouldBindIdentityToConfiguredClient_NotAnotherB2BClientInOrg()
         {
             // Arrange: 同一 Organization に、構成された Client より先に見つかる別の B2B Client を置く
-            _client.SubjectType = SubjectType.B2B;
             _context.Clients.Add(new Client
             {
                 Id = 2,
@@ -361,13 +361,17 @@ namespace IdentityProvider.Test.Data.Seeders
         }
 
         /// <summary>
-        /// 構成された Client が B2B でない場合は identity を作らず、
-        /// b2b_user.external_id 経由のフォールバックに委ねる（移行前データと同じ状態）。
+        /// 構成された Client が B2B でない場合は identity を作れないので、B2BUser も作らない。
+        /// 識別子の置き場は identity だけ（旧 b2b_user.external_id へのフォールバックは無い）であり、
+        /// identity 無しのユーザーを作ると次回起動以降は既存 subject で早期 return して修復されない。
         /// </summary>
         [Fact]
-        public async Task SeedAsync_WhenConfiguredClientIsNotB2B_ShouldSkipIdentity()
+        public async Task SeedAsync_WhenConfiguredClientIsNotB2B_ShouldSkipUserCreation()
         {
-            // Arrange: _client の SubjectType は既定の B2C のまま
+            // Arrange: 構成された Client を B2C にする（OrganizationClientSeeder の補正が効いていない状態）
+            _client.SubjectType = SubjectType.B2C;
+            await _context.SaveChangesAsync();
+
             var subject = "test-subject-uuid";
             var configuration = CreateDevConfiguration(new Dictionary<string, string?>
             {
@@ -378,8 +382,8 @@ namespace IdentityProvider.Test.Data.Seeders
             // Act
             await _seeder.SeedAsync(_context, configuration, _mockLogger.Object);
 
-            // Assert: B2BUser は作られるが identity は作られない
-            Assert.NotNull(await _context.B2BUsers
+            // Assert: B2BUser も identity も作られない
+            Assert.Null(await _context.B2BUsers
                 .IgnoreQueryFilters()
                 .FirstOrDefaultAsync(u => u.Subject == subject));
 
@@ -387,6 +391,41 @@ namespace IdentityProvider.Test.Data.Seeders
                 .IgnoreQueryFilters()
                 .Where(i => i.B2BSubject == subject)
                 .ToListAsync());
+        }
+
+        /// <summary>
+        /// 構成された Client が別 Organization に属する場合も identity を作れないので、B2BUser を作らない
+        /// （作ると B2BPasskeyService の Organization 境界チェックで弾かれる identity になる）。
+        /// </summary>
+        [Fact]
+        public async Task SeedAsync_WhenConfiguredClientBelongsToAnotherOrganization_ShouldSkipUserCreation()
+        {
+            // Arrange: 構成された Client を別 Organization に付け替える
+            _context.Organizations.Add(new Organization
+            {
+                Id = 2,
+                Code = "other-org",
+                Name = "別組織",
+                TenantName = "other-tenant"
+            });
+            _client.OrganizationId = 2;
+            await _context.SaveChangesAsync();
+
+            var subject = "test-subject-uuid";
+            var configuration = CreateDevConfiguration(new Dictionary<string, string?>
+            {
+                ["DEV_B2B_USER_SUBJECT"] = subject,
+                ["DEV_B2B_USER_EXTERNAL_ID"] = "test-admin"
+            });
+
+            // Act
+            await _seeder.SeedAsync(_context, configuration, _mockLogger.Object);
+
+            // Assert
+            Assert.Null(await _context.B2BUsers
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(u => u.Subject == subject));
+            Assert.Empty(await _context.B2BUserIdentities.IgnoreQueryFilters().ToListAsync());
         }
 
         [Fact]
@@ -397,7 +436,6 @@ namespace IdentityProvider.Test.Data.Seeders
             _context.B2BUsers.Add(new B2BUser
             {
                 Subject = subject,
-                ExternalId = "existing-admin",
                 UserType = "admin",
                 OrganizationId = _organization.Id
             });
@@ -419,11 +457,11 @@ namespace IdentityProvider.Test.Data.Seeders
 
             Assert.Equal(1, count);
 
-            // ExternalId は更新されていないことを確認
-            var user = await _context.B2BUsers
+            // 既存ユーザーには identity も追加されないことを確認（シーダーは既存 subject を触らない）
+            Assert.Empty(await _context.B2BUserIdentities
                 .IgnoreQueryFilters()
-                .FirstAsync(u => u.Subject == subject);
-            Assert.Equal("existing-admin", user.ExternalId);
+                .Where(i => i.B2BSubject == subject)
+                .ToListAsync());
         }
 
         #endregion

@@ -39,13 +39,9 @@ namespace IdentityProvider.Services
             }
             var now = DateTimeOffset.UtcNow;
 
-            var externalIdHash = ExternalIdHasher.Hash(request.ExternalId);
-
             var user = new B2BUser
             {
                 Subject = subject,
-                // external_id は個人情報を含み得るため、正規化 + SHA-256 ハッシュ化して保持する。
-                ExternalId = externalIdHash,
                 UserType = request.UserType,
                 OrganizationId = request.OrganizationId,
                 CreatedAt = now,
@@ -54,13 +50,14 @@ namespace IdentityProvider.Services
 
             _context.B2BUsers.Add(user);
 
-            // 識別子の正となる置き場（EcAuthDocs#110）。b2b_user.external_id は移行期間中の
-            // フォールバックとして二重に書いておき、移行完了後のマイグレーションで落とす。
+            // 識別子の置き場は b2b_user_identity のみ（EcAuthDocs#110）。
+            // external_id は個人情報を含み得るため、正規化 + SHA-256 ハッシュ化して保持する。
+            // 旧 b2b_user.external_id 列はモデルにマップしておらず、INSERT では DB の DEFAULT '' が入る。
             _context.B2BUserIdentities.Add(new B2BUserIdentity
             {
                 B2BSubject = subject,
                 IssuerKey = request.IssuerKey,
-                ExternalId = externalIdHash,
+                ExternalId = ExternalIdHasher.Hash(request.ExternalId),
                 ClientId = request.ClientId,
                 CreatedAt = now
             });
@@ -96,84 +93,6 @@ namespace IdentityProvider.Services
             }
 
             return user;
-        }
-
-        /// <inheritdoc />
-        public async Task<B2BUser?> GetByExternalIdAsync(string externalId, int organizationId)
-        {
-            if (string.IsNullOrWhiteSpace(externalId))
-            {
-                return null;
-            }
-
-            // external_id はハッシュ化して保持しているため、検索キーも同じく正規化 + ハッシュ化する。
-            var externalIdHash = ExternalIdHasher.Hash(externalId);
-
-            var user = await _context.B2BUsers
-                .Include(u => u.Organization)
-                .Include(u => u.PasskeyCredentials)
-                .FirstOrDefaultAsync(u => u.ExternalId == externalIdHash && u.OrganizationId == organizationId);
-
-            if (user == null)
-            {
-                // 平文 external_id は PII を含み得るためログにはハッシュ値のみ残す。
-                _logger.LogDebug(
-                    "B2Bユーザーが見つかりません: ExternalIdHash={ExternalIdHash}, OrganizationId={OrganizationId}",
-                    externalIdHash, organizationId);
-            }
-
-            return user;
-        }
-
-        /// <inheritdoc />
-        public async Task<B2BUser?> GetUnclaimedByExternalIdAsync(
-            string externalId, int organizationId, string issuerKey)
-        {
-            if (string.IsNullOrWhiteSpace(externalId) || string.IsNullOrWhiteSpace(issuerKey))
-            {
-                return null;
-            }
-
-            // external_id はハッシュ化して保持しているため、検索キーも同じく正規化 + ハッシュ化する。
-            var externalIdHash = ExternalIdHasher.Hash(externalId);
-
-            // (organization_id, external_id) は非一意になったため（EcAuthDocs#110）、
-            // 発行元の異なる同一ハッシュが複数並びうる。先頭 1 件で打ち切らず候補を走査する。
-            var candidates = await _context.B2BUsers
-                .Include(u => u.Organization)
-                .Include(u => u.PasskeyCredentials)
-                .Where(u => u.ExternalId == externalIdHash && u.OrganizationId == organizationId)
-                .ToListAsync();
-
-            foreach (var candidate in candidates)
-            {
-                var issuerKeys = await _context.B2BUserIdentities
-                    .IgnoreQueryFilters()
-                    .Where(i => i.B2BSubject == candidate.Subject)
-                    .Select(i => i.IssuerKey)
-                    .ToListAsync();
-
-                if (issuerKeys.Count == 0 || issuerKeys.Contains(issuerKey, StringComparer.Ordinal))
-                {
-                    return candidate;
-                }
-
-                // 別の発行元が既に取得済みのユーザー。ここで返すと呼び出し元が
-                // EnsureIdentityAsync で自分の identity を足し、別人を 1 つの b2b_subject へ
-                // 統合してしまうため、フォールバック対象から外す。
-                _logger.LogInformation(
-                    "ExternalId フォールバックを見送りました（別の発行元が保有済み）: " +
-                    "Subject={Subject}, RequestedIssuerKey={IssuerKey}",
-                    candidate.Subject, issuerKey);
-            }
-
-            // 平文 external_id は PII を含み得るためログにはハッシュ値のみ残す。
-            _logger.LogDebug(
-                "引き継ぎ可能な B2Bユーザーが見つかりません: ExternalIdHash={ExternalIdHash}, " +
-                "OrganizationId={OrganizationId}, IssuerKey={IssuerKey}",
-                externalIdHash, organizationId, issuerKey);
-
-            return null;
         }
 
         /// <inheritdoc />
@@ -216,8 +135,10 @@ namespace IdentityProvider.Services
                 subject, issuerKey, ExternalIdHasher.Hash(externalId), clientId);
         }
 
-        /// <inheritdoc />
-        public async Task EnsureIdentityByHashAsync(
+        /// <summary>
+        /// <see cref="EnsureIdentityAsync"/> の本体（ハッシュ値受け取り）。
+        /// </summary>
+        private async Task EnsureIdentityByHashAsync(
             string subject, string issuerKey, string externalIdHash, string? clientId)
         {
             if (string.IsNullOrWhiteSpace(subject))
@@ -346,17 +267,6 @@ namespace IdentityProvider.Services
             }
 
             // 部分更新（nullでないフィールドのみ更新）
-            // external_id は正規化 + ハッシュ化して保持する。null は「更新しない」を意味するが、
-            // 空文字・空白は無効値のため silent skip せず fail-fast で弾く。
-            if (request.ExternalId != null)
-            {
-                if (string.IsNullOrWhiteSpace(request.ExternalId))
-                {
-                    throw new ArgumentException("ExternalId を空文字または空白にすることはできません。", nameof(request));
-                }
-                user.ExternalId = ExternalIdHasher.Hash(request.ExternalId);
-            }
-
             if (request.UserType != null)
             {
                 user.UserType = request.UserType;

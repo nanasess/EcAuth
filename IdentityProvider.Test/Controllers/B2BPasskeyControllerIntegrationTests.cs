@@ -163,7 +163,7 @@ namespace IdentityProvider.Test.Controllers
         public async Task IntegrationTest_FullRegistrationFlow_ShouldSucceed()
         {
             // Arrange
-            var testUser = await CreateTestB2BUserAsync("550e8400-e29b-41d4-a716-446655440000", "admin@example.com");
+            var testUser = await CreateTestB2BUserAsync("550e8400-e29b-41d4-a716-446655440000");
 
             var registerOptionsRequest = new B2BPasskeyController.RegisterOptionsRequest
             {
@@ -184,7 +184,7 @@ namespace IdentityProvider.Test.Controllers
                 User = new Fido2User
                 {
                     Id = Encoding.UTF8.GetBytes(testUser.Subject),
-                    Name = testUser.ExternalId,
+                    Name = "admin@example.com",
                     DisplayName = "テスト管理者"
                 },
                 PubKeyCredParams = PubKeyCredParam.Defaults
@@ -264,7 +264,7 @@ namespace IdentityProvider.Test.Controllers
         public async Task IntegrationTest_RegisterOptions_InvalidRpId_ReturnsBadRequest()
         {
             // Arrange
-            var testUser = await CreateTestB2BUserAsync("550e8400-e29b-41d4-a716-446655440002", "admin2@example.com");
+            var testUser = await CreateTestB2BUserAsync("550e8400-e29b-41d4-a716-446655440002");
 
             var request = new B2BPasskeyController.RegisterOptionsRequest
             {
@@ -295,7 +295,7 @@ namespace IdentityProvider.Test.Controllers
         public async Task IntegrationTest_RegisterVerify_ExpiredSession_ReturnsBadRequest()
         {
             // Arrange
-            var testUser = await CreateTestB2BUserAsync("550e8400-e29b-41d4-a716-446655440003", "admin3@example.com");
+            var testUser = await CreateTestB2BUserAsync("550e8400-e29b-41d4-a716-446655440003");
 
             // 期限切れのチャレンジを直接作成
             var expiredChallenge = new WebAuthnChallenge
@@ -338,7 +338,7 @@ namespace IdentityProvider.Test.Controllers
         public async Task IntegrationTest_RegisterOptions_InvalidClientSecret_ReturnsUnauthorized()
         {
             // Arrange
-            var testUser = await CreateTestB2BUserAsync("550e8400-e29b-41d4-a716-446655440004", "authfail@example.com");
+            var testUser = await CreateTestB2BUserAsync("550e8400-e29b-41d4-a716-446655440004");
 
             var request = new B2BPasskeyController.RegisterOptionsRequest
             {
@@ -366,7 +366,7 @@ namespace IdentityProvider.Test.Controllers
         public async Task IntegrationTest_RegisterMultiplePasskeys_ForSameUser_ShouldSucceed()
         {
             // Arrange
-            var testUser = await CreateTestB2BUserAsync("550e8400-e29b-41d4-a716-446655440005", "multipasskey@example.com");
+            var testUser = await CreateTestB2BUserAsync("550e8400-e29b-41d4-a716-446655440005");
 
             // Act: 1つ目のパスキー登録
             await RegisterPasskeyForUserAsync(testUser, "MacBook Pro", "1");
@@ -393,7 +393,7 @@ namespace IdentityProvider.Test.Controllers
         public async Task IntegrationTest_FullAuthenticationFlow_ShouldSucceed()
         {
             // Arrange
-            var testUser = await CreateTestB2BUserAsync("550e8400-e29b-41d4-a716-446655440006", "authuser@example.com");
+            var testUser = await CreateTestB2BUserAsync("550e8400-e29b-41d4-a716-446655440006");
             var credentialIdBytes = Encoding.UTF8.GetBytes("auth-credential-id");
 
             // パスキーを事前登録
@@ -526,7 +526,7 @@ namespace IdentityProvider.Test.Controllers
         public async Task IntegrationTest_AuthenticateVerify_CredentialNotFound_ReturnsBadRequest()
         {
             // Arrange
-            var testUser = await CreateTestB2BUserAsync("550e8400-e29b-41d4-a716-446655440007", "nopasskey@example.com");
+            var testUser = await CreateTestB2BUserAsync("550e8400-e29b-41d4-a716-446655440007");
 
             // チャレンジを作成
             var challenge = new WebAuthnChallenge
@@ -589,7 +589,7 @@ namespace IdentityProvider.Test.Controllers
         public async Task IntegrationTest_AuthenticateVerify_ShouldSetSubjectTypeB2B()
         {
             // Arrange
-            var testUser = await CreateTestB2BUserAsync("550e8400-e29b-41d4-a716-446655440008", "subjecttype@example.com");
+            var testUser = await CreateTestB2BUserAsync("550e8400-e29b-41d4-a716-446655440008");
             var credentialIdBytes = Encoding.UTF8.GetBytes("subjecttype-credential-id");
 
             // パスキーを事前登録
@@ -678,7 +678,7 @@ namespace IdentityProvider.Test.Controllers
         public async Task IntegrationTest_AuthorizationCode_SubjectTypeSetBasedOnSubjectType()
         {
             // Arrange
-            var testUser = await CreateTestB2BUserAsync("550e8400-e29b-41d4-a716-446655440009", "authcode-subjecttype@example.com");
+            var testUser = await CreateTestB2BUserAsync("550e8400-e29b-41d4-a716-446655440009");
 
             // B2B認証のための認可コードを直接生成
             var authCodeRequest = new IAuthorizationCodeService.AuthorizationCodeRequest
@@ -711,7 +711,7 @@ namespace IdentityProvider.Test.Controllers
         public async Task IntegrationTest_TokenService_SubjectTypeB2B_ShouldBePropagated()
         {
             // Arrange
-            var testB2BUser = await CreateTestB2BUserAsync("550e8400-e29b-41d4-a716-44665544000a", "token-subjecttype@example.com");
+            var testB2BUser = await CreateTestB2BUserAsync("550e8400-e29b-41d4-a716-44665544000a");
 
             // アクセストークンを生成
             // ISubjectProvider 導入により、B2BUser を直接渡せるようになった
@@ -758,7 +758,7 @@ namespace IdentityProvider.Test.Controllers
         public async Task IntegrationTest_ListPasskeys_WithValidToken_ReturnsPasskeyList()
         {
             // Arrange
-            var testUser = await CreateTestB2BUserAsync("550e8400-e29b-41d4-a716-44665544000b", "listuser@example.com");
+            var testUser = await CreateTestB2BUserAsync("550e8400-e29b-41d4-a716-44665544000b");
 
             // パスキーを登録
             var credentials = new[]
@@ -825,7 +825,7 @@ namespace IdentityProvider.Test.Controllers
         public async Task IntegrationTest_DeletePasskey_WithValidToken_ReturnsNoContent()
         {
             // Arrange
-            var testUser = await CreateTestB2BUserAsync("550e8400-e29b-41d4-a716-44665544000c", "deleteuser@example.com");
+            var testUser = await CreateTestB2BUserAsync("550e8400-e29b-41d4-a716-44665544000c");
 
             var credentialId = Encoding.UTF8.GetBytes("delete-cred");
             var credential = new B2BPasskeyCredential
@@ -937,13 +937,12 @@ namespace IdentityProvider.Test.Controllers
             await _context.SaveChangesAsync();
 
             // Organization 1 のユーザー
-            var user1 = await CreateTestB2BUserAsync("550e8400-e29b-41d4-a716-44665544000d", "user1@org1.com", 1);
+            var user1 = await CreateTestB2BUserAsync("550e8400-e29b-41d4-a716-44665544000d", 1);
 
             // Organization 2 のユーザー
             var user2 = new B2BUser
             {
                 Subject = "550e8400-e29b-41d4-a716-44665544000e",
-                ExternalId = "user2@org2.com",
                 UserType = "admin",
                 OrganizationId = 2,
                 CreatedAt = DateTimeOffset.UtcNow,
@@ -1052,13 +1051,12 @@ namespace IdentityProvider.Test.Controllers
             await _context.SaveChangesAsync();
 
             // Organization 1 のユーザー
-            var user1 = await CreateTestB2BUserAsync("550e8400-e29b-41d4-a716-44665544000f", "crossuser1@org1.com", 1);
+            var user1 = await CreateTestB2BUserAsync("550e8400-e29b-41d4-a716-44665544000f", 1);
 
             // Organization 3 のユーザー
             var user3 = new B2BUser
             {
                 Subject = "550e8400-e29b-41d4-a716-446655440010",
-                ExternalId = "crossuser3@org3.com",
                 UserType = "admin",
                 OrganizationId = 3,
                 CreatedAt = DateTimeOffset.UtcNow,
@@ -1112,12 +1110,11 @@ namespace IdentityProvider.Test.Controllers
 
         #region Helper Methods
 
-        private async Task<B2BUser> CreateTestB2BUserAsync(string subject, string externalId, int organizationId = 1)
+        private async Task<B2BUser> CreateTestB2BUserAsync(string subject, int organizationId = 1)
         {
             var user = new B2BUser
             {
                 Subject = subject,
-                ExternalId = externalId,
                 UserType = "admin",
                 OrganizationId = organizationId,
                 CreatedAt = DateTimeOffset.UtcNow,
@@ -1140,7 +1137,7 @@ namespace IdentityProvider.Test.Controllers
                 User = new Fido2User
                 {
                     Id = Encoding.UTF8.GetBytes(user.Subject),
-                    Name = user.ExternalId,
+                    Name = user.Subject,
                     DisplayName = "テスト管理者"
                 },
                 PubKeyCredParams = PubKeyCredParam.Defaults
@@ -1169,7 +1166,9 @@ namespace IdentityProvider.Test.Controllers
                 ClientSecret = _client.ClientSecret!,
                 RpId = "shop.example.com",
                 B2BSubject = user.Subject,
-                ExternalId = user.ExternalId,
+                // external_id は b2b_user には保持しない（identity 側にハッシュで置く）。
+                // subject 一致で解決される経路なので値は任意でよい。
+                ExternalId = $"{user.Subject}@example.com",
                 DisplayName = "テスト管理者",
                 DeviceName = deviceName
             };

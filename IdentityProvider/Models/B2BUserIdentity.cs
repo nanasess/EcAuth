@@ -28,11 +28,11 @@ namespace IdentityProvider.Models
         public const int IssuerKeyMaxLength = 520;
 
         /// <summary>
-        /// external_id の最大長。<see cref="B2BUser.ExternalIdMaxLength"/> と揃える。
+        /// external_id の最大長。旧 b2b_user.external_id（nvarchar(255)）と同じ幅。
         /// 実際に格納されるのは <see cref="Services.ExternalIdHasher"/> による 64 文字の
-        /// 大文字 hex だが、既存 b2b_user.external_id からの移送を素直に行うため幅を合わせる。
+        /// 大文字 hex だが、旧列からの移送を素直に行うため幅を合わせた。
         /// </summary>
-        public const int ExternalIdMaxLength = B2BUser.ExternalIdMaxLength;
+        public const int ExternalIdMaxLength = 255;
 
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
