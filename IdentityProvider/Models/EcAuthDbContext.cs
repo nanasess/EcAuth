@@ -204,10 +204,9 @@ namespace IdentityProvider.Models
                 .HasPrincipalKey(u => u.Subject)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // b2b_user.external_id はモデルにマップしない（EcAuthDocs#110 リリース 5）。
-            // 識別子の置き場は b2b_user_identity に一本化し、一意性も (issuer_key, external_id) が
-            // 担保する。DB 上の列と非一意索引 IX_b2b_user_organization_id_external_id は
-            // 次のリリース（contract）で落とすまで残るが、本モデルからは参照しない。
+            // 旧 b2b_user.external_id は EcAuthDocs#110 で b2b_user_identity へ移し、列と索引
+            // IX_b2b_user_organization_id_external_id はリリース 6（DropB2BUserExternalId）で削除済み。
+            // 識別子の置き場は b2b_user_identity に一本化し、一意性も (issuer_key, external_id) が担保する。
 
             // B2BUserIdentity 関連の設定（EcAuthDocs#110）
             //
