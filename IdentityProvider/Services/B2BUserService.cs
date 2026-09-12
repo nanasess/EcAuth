@@ -52,7 +52,6 @@ namespace IdentityProvider.Services
 
             // 識別子の置き場は b2b_user_identity のみ（EcAuthDocs#110）。
             // external_id は個人情報を含み得るため、正規化 + SHA-256 ハッシュ化して保持する。
-            // 旧 b2b_user.external_id 列はモデルにマップしておらず、INSERT では DB の DEFAULT '' が入る。
             _context.B2BUserIdentities.Add(new B2BUserIdentity
             {
                 B2BSubject = subject,
