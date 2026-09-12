@@ -42,21 +42,21 @@ namespace IdentityProvider.Services
             public string? DeviceName { get; set; }
 
             /// <summary>
-            /// 外部ID（EC-CUBEのlogin_id等）- 必須
+            /// 外部ID（EC-CUBEのlogin_id等）。client_secret 経路では必須。
+            /// 登録トークン経路（<see cref="ResolvedByRegistrationToken"/>）では null。
             /// </summary>
-            public string ExternalId { get; set; } = string.Empty;
+            public string? ExternalId { get; set; }
 
             /// <summary>
-            /// <see cref="ExternalId"/> が平文ではなく、既に
-            /// <see cref="ExternalIdHasher"/> で正規化 + ハッシュ化された値であることを示す。
+            /// 登録トークン経路（B2BPasskeyController.AuthorizeByRegistrationTokenAsync）であることを示す。
             ///
-            /// 登録トークン経路（B2BPasskeyController.AuthorizeByRegistrationTokenAsync）は
-            /// b2b_user に保存済みのハッシュ値をそのまま渡す。EcAuth は個人情報非保持要件により
-            /// 平文の external_id を保持しないため、この経路では平文を復元できない。
-            /// フラグを立てずに渡すと SHA-256 が二重に掛かり、SHA256(SHA256(email)) という
-            /// 偽の識別子で identity 行が作られ、旧カラムもリクエストのたびに世代が進む。
+            /// この経路では subject がトークンから確定しており、identity 行は申込確定時
+            /// （SignupService）に作成済みなので、external_id による解決・identity の同期は行わない。
+            /// EcAuth は個人情報非保持要件により平文の external_id を保持しないため、この経路で
+            /// 同期しようとしても平文が存在しない（ハッシュ値を平文として扱うと SHA256(SHA256(email))
+            /// の偽識別子になる）。subject が引けない場合はフォールバックや JIT へ進まず失敗させる。
             /// </summary>
-            public bool ExternalIdIsPreHashed { get; set; }
+            public bool ResolvedByRegistrationToken { get; set; }
         }
 
         /// <summary>
@@ -101,7 +101,10 @@ namespace IdentityProvider.Services
             /// <summary>リクエストの b2b_subject がそのまま一致した。</summary>
             public const string AsRequested = "as_requested";
 
-            /// <summary>b2b_subject では見つからず、external_id フォールバックで resolve された。</summary>
+            /// <summary>
+            /// b2b_subject では見つからず、発行元の identity（issuer_key + external_id）で resolve された
+            /// （EC-CUBE プラグイン再インストール時の復旧経路）。値は API 応答の互換のため据え置く。
+            /// </summary>
             public const string FallbackByExternalId = "fallback_by_external_id";
 
             /// <summary>該当ユーザーが存在せず、JIT プロビジョニングで新規作成された。</summary>

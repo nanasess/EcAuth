@@ -389,7 +389,6 @@ namespace IdentityProvider.Test.Controllers
             var b2bUser = new B2BUser
             {
                 Subject = "b2b-integration-test-subject",
-                ExternalId = "b2b-admin@example.com",
                 UserType = "admin",
                 OrganizationId = 1,
                 CreatedAt = DateTimeOffset.UtcNow,

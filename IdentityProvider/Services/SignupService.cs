@@ -234,12 +234,10 @@ namespace IdentityProvider.Services
                 };
                 _context.Accounts.Add(account);
 
-                // B2BUser（Subject を Account と共有、external_id=SHA-256(email)、受付テナント Org 所属）。
-                // external_id は個人情報を含むため正規化 + ハッシュ化して保持する（Account.email は表示用に平文保持）。
+                // B2BUser（Subject を Account と共有、受付テナント Org 所属）。
                 var b2bUser = new B2BUser
                 {
                     Subject = subject,
-                    ExternalId = ExternalIdHasher.Hash(signupRequest.Email),
                     UserType = "account_owner",
                     OrganizationId = accountsOrg.Id
                 };
@@ -248,6 +246,8 @@ namespace IdentityProvider.Services
                 // 発行元ごとの識別子（EcAuthDocs#110）。発行元は受付テナントの管理コンソール
                 // Client（SubjectType.Account）。accounts と stg-accounts は別 Organization なので、
                 // 固定値ではなく client_id を使うことで同一人物が両方に申し込んでも衝突しない。
+                // external_id=SHA-256(email)。個人情報を含むため正規化 + ハッシュ化して保持する
+                // （Account.email は表示用に平文保持）。
                 var accountsClientId = await _context.Clients
                     .IgnoreQueryFilters()
                     .Where(c => c.OrganizationId == accountsOrg.Id && c.SubjectType == SubjectType.Account)
@@ -256,22 +256,26 @@ namespace IdentityProvider.Services
 
                 if (accountsClientId == null)
                 {
-                    // identity 無しでも b2b_user.external_id 経由のフォールバックで解決できるため、
-                    // 申込自体は継続する（移行前データと同じ状態になる）。
-                    _logger.LogWarning(
-                        "B2BUserIdentity の作成をスキップしました: 受付テナントに Account 型 Client がありません Tenant={Tenant}",
-                        signupRequest.TenantName);
+                    // 識別子の置き場は identity だけなので（旧 b2b_user.external_id へのフォールバックは
+                    // 無い）、identity 無しの Account を作らない。管理コンソール Client は
+                    // AccountsOrganizationSeeder が投入する構成前提であり、欠落は設定不備として
+                    // MagicLinkService.ResolveAccountClientAsync と同じく 500 で止める。
+                    _logger.LogError(
+                        "管理コンソール Client が見つかりません: Tenant={Tenant}, OrganizationId={OrganizationId}",
+                        signupRequest.TenantName, accountsOrg.Id);
+                    throw new SignupValidationException(
+                        "signup_not_configured",
+                        "申込環境が正しく構成されていません。サポートにお問い合わせください。",
+                        statusCode: 500);
                 }
-                else
+
+                _context.B2BUserIdentities.Add(new B2BUserIdentity
                 {
-                    _context.B2BUserIdentities.Add(new B2BUserIdentity
-                    {
-                        B2BSubject = subject,
-                        IssuerKey = B2BIssuerKey.ForClient(accountsClientId),
-                        ExternalId = b2bUser.ExternalId,
-                        ClientId = accountsClientId
-                    });
-                }
+                    B2BSubject = subject,
+                    IssuerKey = B2BIssuerKey.ForClient(accountsClientId),
+                    ExternalId = ExternalIdHasher.Hash(signupRequest.Email),
+                    ClientId = accountsClientId
+                });
 
                 // 顧客 Organization を入力 URL に応じて 1〜2 件作成し、
                 // 各 Org に Client / RsaKeyPair / AccountOrganization を作成する。

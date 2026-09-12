@@ -308,8 +308,6 @@ namespace IdentityProvider.Test.Data.Seeders
 
             Assert.NotNull(user);
             Assert.Equal(subject, user.Subject);
-            // シーダーも external_id を正規化 + ハッシュ化して保持する。
-            Assert.Equal(ExternalIdHasher.Hash(externalId), user.ExternalId);
             Assert.Equal("admin", user.UserType);
             Assert.Equal(_organization.Id, user.OrganizationId);
         }
@@ -319,7 +317,7 @@ namespace IdentityProvider.Test.Data.Seeders
         ///
         /// B2BPasskeyService は認証時に request.client_id から解決した Client で IssuerKey を
         /// 組み立てるため、シーダーが Organization 内の別 B2B Client を選ぶと identity 検索が
-        /// 外れ、毎回フォールバック経路に落ちる。
+        /// 外れ、external_id では解決できなくなる。
         /// </summary>
         [Fact]
         public async Task SeedAsync_ShouldBindIdentityToConfiguredClient_NotAnotherB2BClientInOrg()
@@ -397,7 +395,6 @@ namespace IdentityProvider.Test.Data.Seeders
             _context.B2BUsers.Add(new B2BUser
             {
                 Subject = subject,
-                ExternalId = "existing-admin",
                 UserType = "admin",
                 OrganizationId = _organization.Id
             });
@@ -419,11 +416,11 @@ namespace IdentityProvider.Test.Data.Seeders
 
             Assert.Equal(1, count);
 
-            // ExternalId は更新されていないことを確認
-            var user = await _context.B2BUsers
+            // 既存ユーザーには identity も追加されないことを確認（シーダーは既存 subject を触らない）
+            Assert.Empty(await _context.B2BUserIdentities
                 .IgnoreQueryFilters()
-                .FirstAsync(u => u.Subject == subject);
-            Assert.Equal("existing-admin", user.ExternalId);
+                .Where(i => i.B2BSubject == subject)
+                .ToListAsync());
         }
 
         #endregion

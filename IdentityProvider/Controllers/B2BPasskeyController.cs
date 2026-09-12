@@ -176,10 +176,10 @@ namespace IdentityProvider.Controllers
                 // 従来の client_secret 経路（EC-CUBE プラグイン等）で分岐する。
                 Client client;
                 string b2bSubject;
-                string externalId;
-                // 登録トークン経路の external_id は b2b_user 保存済みのハッシュ値で、平文は復元できない
-                // （個人情報非保持要件）。サービス側で再ハッシュさせないためにフラグで区別する。
-                var externalIdIsPreHashed = false;
+                string? externalId;
+                // 登録トークン経路は external_id を持たない（subject はトークンで確定し、identity 行は
+                // 申込確定時に作成済み）。サービス側で解決・同期を行わないようフラグで区別する。
+                var resolvedByRegistrationToken = false;
                 if (!string.IsNullOrWhiteSpace(request.RegistrationToken))
                 {
                     var authz = await AuthorizeByRegistrationTokenAsync(request.ClientId, request.RegistrationToken);
@@ -192,11 +192,11 @@ namespace IdentityProvider.Controllers
                             error_description = "登録トークンが無効か期限切れです。"
                         });
                     }
-                    // b2b_subject / external_id はトークンから確定する（リクエスト値は使わない）。
+                    // b2b_subject はトークンから確定する（リクエスト値は使わない）。
                     client = authz.Value.Client;
                     b2bSubject = authz.Value.Subject;
-                    externalId = authz.Value.ExternalId;
-                    externalIdIsPreHashed = true;
+                    externalId = null;
+                    resolvedByRegistrationToken = true;
                 }
                 else
                 {
@@ -245,7 +245,7 @@ namespace IdentityProvider.Controllers
                     DisplayName = request.DisplayName,
                     DeviceName = request.DeviceName,
                     ExternalId = externalId,
-                    ExternalIdIsPreHashed = externalIdIsPreHashed
+                    ResolvedByRegistrationToken = resolvedByRegistrationToken
                 };
 
                 var result = await _passkeyService.CreateRegistrationOptionsAsync(serviceRequest);
@@ -830,10 +830,10 @@ namespace IdentityProvider.Controllers
         /// <summary>
         /// 登録トークンによる認可（accounts の初回パスキー登録・public client 経路）。
         /// トークンを検証して対象 Subject を得、public な Account コンソール client を
-        /// client_secret 無しで解決し、external_id を confirm 済み B2BUser から確定する。
+        /// client_secret 無しで解決し、confirm 済み B2BUser の存在と所属 Organization を確認する。
         /// 無効・不一致なら null。
         /// </summary>
-        private async Task<(Client Client, string Subject, string ExternalId, string? BoundSessionId)?> AuthorizeByRegistrationTokenAsync(
+        private async Task<(Client Client, string Subject, string? BoundSessionId)?> AuthorizeByRegistrationTokenAsync(
             string clientId, string registrationToken)
         {
             if (string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(registrationToken))
@@ -859,7 +859,8 @@ namespace IdentityProvider.Controllers
                 return null;
             }
 
-            // external_id は confirm で作成済みの B2BUser（Subject 共有）から解決する。
+            // confirm で作成済みの B2BUser（Subject 共有）を引く。identity 行は confirm 時に
+            // 作成済みなので、この経路で external_id を扱う必要はない。
             var b2bUser = await _b2bUserService.GetBySubjectAsync(subject);
             if (b2bUser == null)
             {
@@ -878,7 +879,7 @@ namespace IdentityProvider.Controllers
                 return null;
             }
 
-            return (client, subject, b2bUser.ExternalId, tokenInfo.SessionId);
+            return (client, subject, tokenInfo.SessionId);
         }
 
         private async Task<Client?> AuthenticateClientAsync(string clientId, string clientSecret)

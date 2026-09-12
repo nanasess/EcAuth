@@ -207,7 +207,6 @@ public class B2BPasskeySeeder : IDbSeeder
         context.B2BUsers.Add(new B2BUser
         {
             Subject = b2bUserSubject,
-            ExternalId = externalIdHash,
             UserType = "admin",
             OrganizationId = organization.Id
         });
@@ -215,11 +214,11 @@ public class B2BPasskeySeeder : IDbSeeder
         // 発行元ごとの識別子（EcAuthDocs#110）。発行元は「構成された Client」そのものでなければ
         // ならない。B2BPasskeyService は認証時に request.client_id から解決した Client で
         // IssuerKey を組み立てるため、ここで Organization 内の別 Client（最初に見つかった B2B
-        // Client 等）を選ぶと identity 検索が外れ、毎回フォールバック経路に落ちる。
+        // Client 等）を選ぶと identity 検索が外れ、external_id では解決できなくなる。
         if (client.SubjectType != SubjectType.B2B)
         {
-            // identity 無しでも b2b_user.external_id 経由のフォールバックで解決できるため、
-            // シード自体は続行する（移行前データと同じ状態になる）。
+            // identity 無しのユーザーは subject 一致でしか解決できない（旧 b2b_user.external_id への
+            // フォールバックは無い）。認証・登録は subject で行えるためシード自体は続行する。
             logger.LogWarning(
                 "B2BUserIdentity creation skipped - client {ClientId} is not a B2B client (SubjectType={SubjectType})",
                 client.ClientId, client.SubjectType);

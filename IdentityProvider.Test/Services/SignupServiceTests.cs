@@ -16,6 +16,8 @@ namespace IdentityProvider.Test.Services
     public class SignupServiceTests
     {
         private const string Tenant = "accounts";
+        /// <summary>受付テナントの管理コンソール Client（AccountsOrganizationSeeder が投入するものに相当）。</summary>
+        private const string AccountsClientId = "ecauth-admin-console-test";
 
         private readonly ILogger<SignupService> _logger;
 
@@ -59,9 +61,11 @@ namespace IdentityProvider.Test.Services
         }
 
         /// <summary>
-        /// 受付テナント Org (Code=TenantName) を投入した InMemory コンテキストを生成する。
+        /// 受付テナント Org (Code=TenantName) と管理コンソール Client（SubjectType.Account）を投入した
+        /// InMemory コンテキストを生成する。account_owner の identity は管理コンソール Client を発行元に
+        /// するため、confirm には Client が必須（<paramref name="withAccountsClient"/> = false で欠落を再現）。
         /// </summary>
-        private static EcAuthDbContext CreateContextWithAccountsOrg(ITenantService tenantService)
+        private static EcAuthDbContext CreateContextWithAccountsOrg(ITenantService tenantService, bool withAccountsClient = true)
         {
             var context = TestDbContextHelper.CreateInMemoryContext(tenantService: tenantService);
             context.Organizations.Add(new Organization
@@ -71,6 +75,19 @@ namespace IdentityProvider.Test.Services
                 Name = "EcAuth Accounts",
                 TenantName = Tenant
             });
+            if (withAccountsClient)
+            {
+                context.Clients.Add(new Client
+                {
+                    Id = 1,
+                    ClientId = AccountsClientId,
+                    // public client は空 secret（AccountsOrganizationSeeder と同じ）
+                    ClientSecret = string.Empty,
+                    AppName = "EcAuth Accounts Console",
+                    OrganizationId = 1,
+                    SubjectType = SubjectType.Account
+                });
+            }
             context.SaveChanges();
             return context;
         }
@@ -584,9 +601,16 @@ namespace IdentityProvider.Test.Services
             var b2bUser = await context.B2BUsers.IgnoreQueryFilters().FirstOrDefaultAsync();
             Assert.NotNull(b2bUser);
             Assert.Equal(account!.Subject, b2bUser!.Subject);
-            // external_id は Account.email を正規化 + ハッシュ化した値（平文 email は B2BUser には保持しない）。
-            Assert.Equal(ExternalIdHasher.Hash(account.Email), b2bUser.ExternalId);
-            Assert.Single(await context.Clients.IgnoreQueryFilters().ToListAsync());
+            Assert.Equal("account_owner", b2bUser.UserType);
+            // 識別子は管理コンソール Client を発行元とする identity 行に、Account.email を
+            // 正規化 + ハッシュ化して保持する（平文 email は B2BUser 側には保持しない）。
+            var identity = await context.B2BUserIdentities.IgnoreQueryFilters().SingleAsync();
+            Assert.Equal(b2bUser.Subject, identity.B2BSubject);
+            Assert.Equal(B2BIssuerKey.ForClient(AccountsClientId), identity.IssuerKey);
+            Assert.Equal(AccountsClientId, identity.ClientId);
+            Assert.Equal(ExternalIdHasher.Hash(account.Email), identity.ExternalId);
+            // 顧客 Org の Client が 1 つ作られる（受付テナントの管理コンソール Client は除く）
+            Assert.Single(await context.Clients.IgnoreQueryFilters().Where(c => c.OrganizationId != 1).ToListAsync());
             Assert.Single(await context.RsaKeyPairs.IgnoreQueryFilters().ToListAsync());
             Assert.Single(await context.AccountOrganizations.ToListAsync());
         }
@@ -873,6 +897,28 @@ namespace IdentityProvider.Test.Services
         }
 
         // ---- ConfirmAsync 異常系 ----
+
+        [Fact]
+        public async Task ConfirmAsync_WithoutAccountsClient_ThrowsNotConfigured()
+        {
+            // 受付テナントに管理コンソール Client が無いと account_owner の identity を作れない。
+            // 識別子の置き場は identity だけ（旧 b2b_user.external_id へのフォールバックは無い）なので、
+            // identity 無しの Account を作らず設定不備として 500 で止める。
+            var tenantService = CreateTenantService();
+            using var context = CreateContextWithAccountsOrg(tenantService, withAccountsClient: false);
+            var service = CreateService(context, tenantService, out var emailMock, out _);
+
+            var token = await RequestAndCaptureTokenAsync(service, emailMock, ValidInput());
+
+            var ex = await Assert.ThrowsAsync<SignupValidationException>(() => service.ConfirmAsync(token));
+            Assert.Equal("signup_not_configured", ex.Error);
+            Assert.Equal(500, ex.StatusCode);
+
+            // トランザクションごと破棄され、Account / B2BUser / 顧客 Org は残らない
+            Assert.Empty(await context.Accounts.IgnoreQueryFilters().ToListAsync());
+            Assert.Empty(await context.B2BUsers.IgnoreQueryFilters().ToListAsync());
+            Assert.Empty(await context.Organizations.IgnoreQueryFilters().Where(o => o.Code != Tenant).ToListAsync());
+        }
 
         [Fact]
         public async Task ConfirmAsync_InvalidToken_Throws()
