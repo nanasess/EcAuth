@@ -1,3 +1,4 @@
+using System.Reflection;
 using Fido2NetLib;
 using IdentityProvider.Constants;
 using IdentityProvider.Data;
@@ -117,6 +118,11 @@ builder.Services.AddSecretProtection(options =>
     options.UsePlaintext = usePlaintextSecretProtector;
     options.KeyVaultKeyId = clientSecretKeyVaultKeyId;
 });
+// 起動直後に Key Vault 経路（MSI トークン・鍵・復号クライアント）を温める。新インスタンスの初回復号が
+// 8 秒超かかり E2E がタイムアウトした（EcAuth#532 の本番 verify）ため。結果は /healthz が返し、
+// デプロイ後の verify はこれを見て E2E の開始を待つ。平文フォールバック時は何もしない。
+builder.Services.AddSingleton(new SecretProtectorWarmupState(enabled: !usePlaintextSecretProtector));
+builder.Services.AddHostedService<SecretProtectorWarmupService>();
 
 // データベース初期化（シーダー）
 builder.Services.AddScoped<IDbSeeder, OrganizationClientSeeder>();
@@ -307,19 +313,46 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// ヘルスチェックエンドポイント
-app.MapGet("/healthz", async (EcAuthDbContext dbContext) =>
+// ヘルスチェックエンドポイント。
+// version はビルド時に埋めた git SHA 付きの InformationalVersion（CI が -p:SourceRevisionId を渡す）。
+// デプロイ直後は旧コンテナが応答し続ける窓があり（EcAuth#532 で旧プロセスが verify 開始後 10 秒近く
+// 応答していた）、version を見ないと「温めたのは旧ビルド」になる。secret_protector は Key Vault 経路の
+// 温まり具合（SecretProtectorWarmupService）。どちらも DB 疎通とは独立なので status には影響させない。
+var informationalVersion = typeof(Program).Assembly
+    .GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>()?
+    .InformationalVersion ?? "unknown";
+app.MapGet("/healthz", async (EcAuthDbContext dbContext, SecretProtectorWarmupState warmup) =>
 {
+    var secretProtector = warmup.Status switch
+    {
+        SecretProtectorWarmupStatus.NotApplicable => "n/a",
+        SecretProtectorWarmupStatus.Cold => "cold",
+        SecretProtectorWarmupStatus.Warm => "warm",
+        _ => "failed",
+    };
     try
     {
         // データベース接続確認
         await dbContext.Database.CanConnectAsync();
-        return Results.Ok(new { status = "healthy", database = "connected" });
+        return Results.Ok(new
+        {
+            status = "healthy",
+            database = "connected",
+            version = informationalVersion,
+            secret_protector = secretProtector,
+        });
     }
     catch (Exception ex)
     {
         return Results.Json(
-            new { status = "unhealthy", database = "disconnected", error = ex.Message },
+            new
+            {
+                status = "unhealthy",
+                database = "disconnected",
+                version = informationalVersion,
+                secret_protector = secretProtector,
+                error = ex.Message,
+            },
             statusCode: 503
         );
     }

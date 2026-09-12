@@ -224,7 +224,8 @@ jobs:
         run: dotnet restore IdentityProvider/IdentityProvider.csproj
 
       - name: Build
-        run: dotnet build IdentityProvider/IdentityProvider.csproj --configuration Release --no-restore
+        # /healthz の version に git SHA を埋める（デプロイ後の verify が新ビルドの稼働を判定する）。
+        run: dotnet build IdentityProvider/IdentityProvider.csproj --configuration Release --no-restore -p:SourceRevisionId=${{ github.sha }}
 
       - name: Publish
         run: dotnet publish IdentityProvider/IdentityProvider.csproj --configuration Release --no-build --output ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
@@ -361,12 +362,64 @@ jobs:
       # waitForURL（20 秒）がサーバー応答より先に切れる（EcAuth#530 / #531 の本番適用で 2 回連続）。
       # いずれもサーバー側の処理自体は成功しており、テスト側のタイムアウトだけが赤くなっていた。
       #
+      # EcAuth#532 の本番適用では、さらに次の 2 点が判明した:
+      #   - deploy ジョブ完了後も旧コンテナが応答し続ける窓があり（verify 開始後 10 秒近く）、
+      #     ここで温めても「温めたのは旧ビルド、E2E が当たるのは冷えた新ビルド」になる
+      #   - 新ビルドの初回復号は Key Vault の鍵 GET 401 → MSI トークン取得（5.5 秒）→ 復号で 8 秒超かかり、
+      #     /healthz を叩いても温まらない（DB 疎通しか通らない）
+      # そのため、まず /healthz の version（CI が -p:SourceRevisionId で埋めた git SHA）で新ビルドの
+      # 稼働を確認し、secret_protector（起動時の SecretProtectorWarmupService が Key Vault を 1 往復した
+      # 結果）が warm になるまで待ってから、各ホストの応答が速くなるまで叩く。
+      #
       # テナント解決と EF のクエリプランはホスト（テナント）ごとに温まるため、production だけでなく
-      # signup smoke が使う stg-accounts も叩く。温まりきらなくてもジョブは落とさない
-      # （本来の検証は後続の E2E であり、ここで失敗させると切り分けが減る）。
+      # signup smoke が使う stg-accounts も叩く。応答時間の温まりについては、温まりきらなくてもジョブは
+      # 落とさない（本来の検証は後続の E2E であり、ここで失敗させると切り分けが減る）。
+      # 一方、新ビルドの稼働が確認できない場合はジョブを落とす。そのまま進むと E2E が旧ビルドを検証して
+      # 「デプロイが検証された」という偽陽性になるため。
+      # verify-only はデプロイを伴わない（稼働中のビルドが github.sha と一致する保証が無い）ので、
+      # 新ビルドの待ち合わせはスキップして応答時間の温まりだけ行う。
       - name: Warm up endpoints
         if: ${{ !cancelled() }}
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          ACTION: ${{ inputs.action }}
         run: |
+          # 新ビルドが応答し、Key Vault 経路が温まるまで待つ。
+          # 旧コンテナと新コンテナが同居する窓では応答が交互に返りうるので、新ビルドの応答を
+          # 3 回連続で確認する（curl は毎回新規接続なので keep-alive で旧に張り付くことはない）。
+          #
+          # この判定は本番が 1 インスタンス（B1、ecauth-infrastructure の production/main.tf）である
+          # ことを前提にしている。単一インスタンスでは新コンテナが応答し始めた時点で経路が切り替わり、
+          # 旧は処理中のリクエストを終えて止まる（EcAuth#532 の本番適用で SQL 監査上も交互応答は無かった）。
+          # スケールアウトして複数インスタンスがロードバランスされる構成になると、3 連続の新ビルド応答は
+          # 「新インスタンスが 1 つ以上ある」ことしか示さず、旧インスタンスの残存を否定できない。
+          # その場合は deploy ジョブ側でデプロイ状態 API（numberOfInstancesSuccessful 等）を使い、
+          # 全インスタンスのロールアウト完了を待つ形に変える（EcAuthDocs#137）。
+          wait_for_new_build() {
+            url="$1"; label="$2"; streak=0
+            for i in $(seq 1 60); do
+              body=$(curl -s --max-time 30 "$url" || true)
+              version=$(printf '%s' "$body" | jq -r '.version // empty' 2>/dev/null || true)
+              sp=$(printf '%s' "$body" | jq -r '.secret_protector // empty' 2>/dev/null || true)
+              echo "[$label] attempt $i: version=${version:-?} secret_protector=${sp:-?}"
+              case "$version" in
+                *+"$EXPECTED_SHA") streak=$((streak + 1)) ;;
+                *) streak=0 ;;
+              esac
+              if [ "$streak" -ge 3 ]; then
+                # warm: 温まった / n/a: Key Vault 未使用 / failed: 温まらないので待っても無駄
+                case "$sp" in
+                  warm|n/a|failed)
+                    echo "[$label] new build is live (secret_protector=$sp)"
+                    return 0 ;;
+                esac
+              fi
+              sleep 5
+            done
+            echo "::error::[$label] 新ビルドの稼働を確認できませんでした（version が $EXPECTED_SHA に一致しない）。E2E が旧ビルドを検証するのを避けるため中断します。"
+            return 1
+          }
+
           warm() {
             url="$1"; label="$2"
             for i in $(seq 1 12); do
@@ -391,6 +444,12 @@ jobs:
             done
             echo "[$label] 温まりきりませんでした（続行します）"
           }
+
+          if [ "$ACTION" = "verify-only" ]; then
+            echo "[production/build] verify-only はデプロイを伴わないため、新ビルドの待ち合わせをスキップします"
+          else
+            wait_for_new_build "https://production.ec-auth.io/healthz" "production/build"
+          fi
           warm "https://production.ec-auth.io/healthz" "production/healthz"
           warm "https://stg-accounts.ec-auth.io/healthz" "stg-accounts/healthz"
           warm "https://stg-accounts.ec-auth.io/passkey/register" "stg-accounts/passkey-register"
@@ -439,7 +498,7 @@ jobs:
           DEV_B2B_REDIRECT_URI: ${{ env.B2B_REDIRECT_URI }}
         run: |
           set -o pipefail
-          pnpm exec playwright test tests/specs/b2b_passkey_authentication.spec.ts --reporter=list 2>&1 | tee playwright-output.txt
+          pnpm exec playwright test tests/specs/b2b_passkey_authentication.spec.ts --reporter=list --output test-results/b2b 2>&1 | tee playwright-output.txt
 
       # 申込 → client-resolve → B2B パスキー登録/認証 → トークン交換 を、実環境の設定で通す。
       # シード済み Client を使う b2b_passkey_authentication では守れない範囲を埋める:
@@ -467,8 +526,11 @@ jobs:
           E2E_MAILBOX_API_TOKEN: ${{ env.E2E_MAILBOX_TOKEN }}
         run: |
           set -o pipefail
-          pnpm exec playwright test tests/specs/signup_client_b2b_login.spec.ts --reporter=list 2>&1 | tee signup-smoke-output.txt
+          pnpm exec playwright test tests/specs/signup_client_b2b_login.spec.ts --reporter=list --output test-results/signup-smoke 2>&1 | tee signup-smoke-output.txt
 
+      # Playwright は実行開始時に outputDir を空にするため、B2B E2E と signup smoke で同じ
+      # test-results/ を使うと後段が前段の失敗成果物（スクリーンショット・error-context）を消す
+      # （EcAuth#532 の本番 verify で「No files were found」になった原因）。--output で分けている。
       - name: Upload E2E test results
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
