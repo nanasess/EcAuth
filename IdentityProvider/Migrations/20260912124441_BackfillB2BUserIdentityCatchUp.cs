@@ -32,10 +32,18 @@ namespace IdentityProvider.Migrations
                 table: "b2b_user",
                 column: "organization_id");
 
-            // 追いつき backfill。AddB2BUserIdentity と同じ SQL・同じ NOT EXISTS ガードで冪等。
+            // 追いつき backfill。AddB2BUserIdentity と同じ導出ルール・同じ NOT EXISTS ガードで冪等。
             // issuer_key は「その Organization が持つ唯一の Client」から導出する（HAVING COUNT(*) = 1）。
             // 唯一でない Organization のユーザーは決定的に補完できないため意図的に対象外とする
             //（以降は subject 一致でのみ解決される。identity 行は次回 register/options で作られる）。
+            //
+            // AddB2BUserIdentity との差分は ROW_NUMBER() による候補の重複排除。リリース 1 の migrate は
+            // (organization_id, external_id) の UNIQUE を落としてから旧コードのロールアウトが完了するまで
+            // 窓があり、旧コードは検索と INSERT を別々に行うため、同一 (organization_id, external_id) で
+            // identity 無しの b2b_user が並行登録で 2 行できうる。NOT EXISTS は同一 INSERT ... SELECT 内の
+            // 候補同士を比較しないので、そのまま流すと両方が同じ (issuer_key, external_id) を狙って
+            // 一意違反（2601/2627）になり、本番の migrate ジョブが止まる。組ごとに最古の 1 行だけを
+            // 候補にし、残りは subject 一致でのみ解決される状態のまま #63（孤児管理）に寄せる。
             //
             // CLAUDE.md のルールに従い、旧列 external_id の存在を sys.columns で確認し、DML は EXEC() で
             // ラップして名前解決を実行時まで遅延させる（列を落とす次のマイグレーション適用後の環境でも
@@ -49,7 +57,12 @@ namespace IdentityProvider.Migrations
                     EXEC('
                         INSERT INTO dbo.b2b_user_identity (b2b_subject, issuer_key, external_id, client_id, created_at)
                         SELECT u.subject, ''client:'' + c.client_id, u.external_id, c.client_id, SYSDATETIMEOFFSET()
-                        FROM dbo.b2b_user u
+                        FROM (
+                            SELECT subject, organization_id, external_id,
+                                   ROW_NUMBER() OVER (PARTITION BY organization_id, external_id ORDER BY id) AS rn
+                            FROM dbo.b2b_user
+                            WHERE user_type = ''account_owner'' AND external_id <> ''''
+                        ) u
                         INNER JOIN (
                             SELECT organization_id, MIN(client_id) AS client_id
                             FROM dbo.client
@@ -57,8 +70,7 @@ namespace IdentityProvider.Migrations
                             GROUP BY organization_id
                             HAVING COUNT(*) = 1
                         ) c ON c.organization_id = u.organization_id
-                        WHERE u.user_type = ''account_owner''
-                          AND u.external_id <> ''''
+                        WHERE u.rn = 1
                           AND NOT EXISTS (
                               SELECT 1 FROM dbo.b2b_user_identity i
                               WHERE i.issuer_key = ''client:'' + c.client_id
@@ -69,7 +81,12 @@ namespace IdentityProvider.Migrations
                     EXEC('
                         INSERT INTO dbo.b2b_user_identity (b2b_subject, issuer_key, external_id, client_id, created_at)
                         SELECT u.subject, ''client:'' + c.client_id, u.external_id, c.client_id, SYSDATETIMEOFFSET()
-                        FROM dbo.b2b_user u
+                        FROM (
+                            SELECT subject, organization_id, external_id,
+                                   ROW_NUMBER() OVER (PARTITION BY organization_id, external_id ORDER BY id) AS rn
+                            FROM dbo.b2b_user
+                            WHERE user_type <> ''account_owner'' AND external_id <> ''''
+                        ) u
                         INNER JOIN (
                             SELECT organization_id, MIN(client_id) AS client_id
                             FROM dbo.client
@@ -77,8 +94,7 @@ namespace IdentityProvider.Migrations
                             GROUP BY organization_id
                             HAVING COUNT(*) = 1
                         ) c ON c.organization_id = u.organization_id
-                        WHERE u.user_type <> ''account_owner''
-                          AND u.external_id <> ''''
+                        WHERE u.rn = 1
                           AND NOT EXISTS (
                               SELECT 1 FROM dbo.b2b_user_identity i
                               WHERE i.issuer_key = ''client:'' + c.client_id
