@@ -372,12 +372,17 @@ jobs:
       # 結果）が warm になるまで待ってから、各ホストの応答が速くなるまで叩く。
       #
       # テナント解決と EF のクエリプランはホスト（テナント）ごとに温まるため、production だけでなく
-      # signup smoke が使う stg-accounts も叩く。温まりきらなくてもジョブは落とさない
-      # （本来の検証は後続の E2E であり、ここで失敗させると切り分けが減る）。
+      # signup smoke が使う stg-accounts も叩く。応答時間の温まりについては、温まりきらなくてもジョブは
+      # 落とさない（本来の検証は後続の E2E であり、ここで失敗させると切り分けが減る）。
+      # 一方、新ビルドの稼働が確認できない場合はジョブを落とす。そのまま進むと E2E が旧ビルドを検証して
+      # 「デプロイが検証された」という偽陽性になるため。
+      # verify-only はデプロイを伴わない（稼働中のビルドが github.sha と一致する保証が無い）ので、
+      # 新ビルドの待ち合わせはスキップして応答時間の温まりだけ行う。
       - name: Warm up endpoints
         if: ${{ !cancelled() }}
         env:
           EXPECTED_SHA: ${{ github.sha }}
+          ACTION: ${{ inputs.action }}
         run: |
           # 新ビルドが応答し、Key Vault 経路が温まるまで待つ。
           # 旧コンテナと新コンテナが同居する窓では応答が交互に返りうるので、新ビルドの応答を
@@ -403,7 +408,8 @@ jobs:
               fi
               sleep 5
             done
-            echo "[$label] 新ビルドの稼働を確認できませんでした（続行します）"
+            echo "::error::[$label] 新ビルドの稼働を確認できませんでした（version が $EXPECTED_SHA に一致しない）。E2E が旧ビルドを検証するのを避けるため中断します。"
+            return 1
           }
 
           warm() {
@@ -431,7 +437,11 @@ jobs:
             echo "[$label] 温まりきりませんでした（続行します）"
           }
 
-          wait_for_new_build "https://production.ec-auth.io/healthz" "production/build"
+          if [ "$ACTION" = "verify-only" ]; then
+            echo "[production/build] verify-only はデプロイを伴わないため、新ビルドの待ち合わせをスキップします"
+          else
+            wait_for_new_build "https://production.ec-auth.io/healthz" "production/build"
+          fi
           warm "https://production.ec-auth.io/healthz" "production/healthz"
           warm "https://stg-accounts.ec-auth.io/healthz" "stg-accounts/healthz"
           warm "https://stg-accounts.ec-auth.io/passkey/register" "stg-accounts/passkey-register"
