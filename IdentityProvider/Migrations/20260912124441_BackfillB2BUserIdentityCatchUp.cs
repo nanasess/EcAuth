@@ -102,6 +102,28 @@ namespace IdentityProvider.Migrations
                     ');
                 END
             ");
+
+            // backfill で補完できなかった identity 無しの b2b_user のうち、パスキーを登録済みのものが
+            // 残っていたら明示的に失敗させる（EcAuth#532 の NOT NULL 化と同じ流儀）。
+            //
+            // 補完できないのは「所属 Organization に該当種別の Client が 0 個または複数ある」場合と、
+            // 上記の重複排除で 2 行目以降になった場合。旧 b2b_user.external_id へのフォールバックが
+            // 無くなる本リリース以降、こうしたユーザーは subject 一致でしか解決できず、プラグインの
+            // 再インストール等で subject が変わると identity で引けずに JIT で別人が作られ、登録済み
+            // パスキーと分断される。パスキー未登録なら分断されるものが無いので止めない
+            //（次回の register/options で identity が作られる）。
+            //
+            // 止まった場合は b2b_user_identity を手動で補完（発行元 Client を業務判断で決める）してから
+            // 再実行する。migrate → deploy 順なので、ここで止まれば新コードは公開されない。
+            migrationBuilder.Sql(@"
+                EXEC('
+                    IF EXISTS (
+                        SELECT 1 FROM dbo.b2b_user u
+                        WHERE NOT EXISTS (SELECT 1 FROM dbo.b2b_user_identity i WHERE i.b2b_subject = u.subject)
+                          AND EXISTS (SELECT 1 FROM dbo.b2b_passkey_credential c WHERE c.b2b_subject = u.subject))
+                        THROW 50000, ''identity を持たない b2b_user にパスキーが登録されています。所属 Organization の Client が唯一でない（または同一 external_id の重複がある）ため発行元を決定できません。b2b_user_identity を手動で補完してから再実行してください。'', 1;
+                ');
+            ");
         }
 
         /// <inheritdoc />

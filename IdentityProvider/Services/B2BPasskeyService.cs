@@ -176,9 +176,13 @@ namespace IdentityProvider.Services
                             "JIT provisioned B2BUser: Subject={Subject}, OrganizationId={OrganizationId}",
                             user.Subject, user.OrganizationId);
                     }
-                    catch (DbUpdateException)
+                    catch (DbUpdateException ex)
                     {
                         // 並行リクエストで Subject または (issuer_key, external_id) の一意制約違反が発生した場合、再取得を試みる。
+                        // SQL エラーコードでは絞らない（B2BUserService と同じく DB プロバイダー非依存に、
+                        // 実状態の再取得で race を判定する）。一意違反以外の障害（タイムアウト等）でも
+                        // 再取得は副作用の無い読み取りなので安全で、どちらでも引けなければ元例外を
+                        // 内包して失敗させる。
                         _logger.LogInformation(
                             "B2BUser already created by concurrent request, re-fetching: Subject={Subject}",
                             b2bSubject);
@@ -188,7 +192,8 @@ namespace IdentityProvider.Services
                             user = await _userService.GetByIdentityAsync(issuerKey, externalId);
                             subjectResolution = user != null
                                 ? IB2BPasskeyService.SubjectResolutions.FallbackByExternalId
-                                : throw new InvalidOperationException($"Failed to create or retrieve B2BUser: {b2bSubject}");
+                                : throw new InvalidOperationException(
+                                    $"Failed to create or retrieve B2BUser: {b2bSubject}", ex);
                         }
                         else
                         {

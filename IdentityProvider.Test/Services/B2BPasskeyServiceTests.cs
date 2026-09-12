@@ -947,6 +947,37 @@ namespace IdentityProvider.Test.Services
         }
 
         [Fact]
+        public async Task CreateRegistrationOptionsAsync_JitFailsAndRefetchMisses_ThrowsWithOriginalAsInner()
+        {
+            // Arrange: CreateAsync が一意違反以外の障害（タイムアウト等）で失敗し、再取得でも
+            // subject / identity のどちらでも引けないケース。race ではないので元例外を失わず、
+            // InvalidOperationException の InnerException として伝える。
+            var newSubject = "aa0e8400-e29b-41d4-a716-446655440099";
+            var request = new IB2BPasskeyService.RegistrationOptionsRequest
+            {
+                ClientId = "test-client-id",
+                RpId = "shop.example.com",
+                B2BSubject = newSubject,
+                ExternalId = "unlucky@example.com"
+            };
+
+            _mockUserService.Setup(x => x.GetBySubjectAsync(newSubject))
+                .ReturnsAsync((B2BUser?)null);
+            _mockUserService.Setup(x => x.GetByIdentityAsync(TestIssuerKey, "unlucky@example.com"))
+                .ReturnsAsync((B2BUser?)null);
+
+            var transientError = new DbUpdateException("transient DB error", new Exception("inner"));
+            _mockUserService.Setup(x => x.CreateAsync(It.IsAny<IB2BUserService.CreateUserRequest>()))
+                .ThrowsAsync(transientError);
+
+            // Act & Assert
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                _service.CreateRegistrationOptionsAsync(request));
+            Assert.Contains("Failed to create or retrieve B2BUser", ex.Message);
+            Assert.Same(transientError, ex.InnerException);
+        }
+
+        [Fact]
         public async Task CreateRegistrationOptionsAsync_MissingExternalId_ShouldThrowArgumentException()
         {
             // Arrange

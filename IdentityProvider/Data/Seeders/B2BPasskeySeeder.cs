@@ -200,9 +200,32 @@ public class B2BPasskeySeeder : IDbSeeder
             return false;
         }
 
-        // external_id は個人情報を含み得るため、書き込み経路と同じく正規化 + ハッシュ化して保持する。
-        // 環境変数 {prefix}_B2B_USER_EXTERNAL_ID には従来どおり平文 login_id を設定する。
-        var externalIdHash = ExternalIdHasher.Hash(b2bUserExternalId);
+        // 発行元ごとの識別子（EcAuthDocs#110）。発行元は「構成された Client」そのものでなければ
+        // ならない。B2BPasskeyService は認証時に request.client_id から解決した Client で
+        // IssuerKey を組み立てるため、ここで Organization 内の別 Client（最初に見つかった B2B
+        // Client 等）を選ぶと identity 検索が外れ、external_id では解決できなくなる。
+        //
+        // 識別子の置き場は identity だけ（旧 b2b_user.external_id へのフォールバックは無い）なので、
+        // identity を作れない構成では B2BUser も作らない。作ってしまうと次回起動以降は既存 subject で
+        // 早期 return し、identity 無しのまま残る。通常は OrganizationClientSeeder（Order 10）が
+        // 構成された Client を B2B へ補正済みなので、ここに来るのは設定不備のときだけ。
+        if (client.SubjectType != SubjectType.B2B)
+        {
+            logger.LogWarning(
+                "B2BUser creation skipped - client {ClientId} is not a B2B client (SubjectType={SubjectType})",
+                client.ClientId, client.SubjectType);
+            return false;
+        }
+
+        if (client.OrganizationId != organization.Id)
+        {
+            // 別 Organization の Client を発行元にすると、B2BPasskeyService の Organization
+            // 境界チェックで弾かれる identity を作ってしまう。
+            logger.LogWarning(
+                "B2BUser creation skipped - client {ClientId} does not belong to organization {OrgCode}",
+                client.ClientId, organizationCode);
+            return false;
+        }
 
         context.B2BUsers.Add(new B2BUser
         {
@@ -211,36 +234,15 @@ public class B2BPasskeySeeder : IDbSeeder
             OrganizationId = organization.Id
         });
 
-        // 発行元ごとの識別子（EcAuthDocs#110）。発行元は「構成された Client」そのものでなければ
-        // ならない。B2BPasskeyService は認証時に request.client_id から解決した Client で
-        // IssuerKey を組み立てるため、ここで Organization 内の別 Client（最初に見つかった B2B
-        // Client 等）を選ぶと identity 検索が外れ、external_id では解決できなくなる。
-        if (client.SubjectType != SubjectType.B2B)
+        // external_id は個人情報を含み得るため、書き込み経路と同じく正規化 + ハッシュ化して保持する。
+        // 環境変数 {prefix}_B2B_USER_EXTERNAL_ID には従来どおり平文 login_id を設定する。
+        context.B2BUserIdentities.Add(new B2BUserIdentity
         {
-            // identity 無しのユーザーは subject 一致でしか解決できない（旧 b2b_user.external_id への
-            // フォールバックは無い）。認証・登録は subject で行えるためシード自体は続行する。
-            logger.LogWarning(
-                "B2BUserIdentity creation skipped - client {ClientId} is not a B2B client (SubjectType={SubjectType})",
-                client.ClientId, client.SubjectType);
-        }
-        else if (client.OrganizationId != organization.Id)
-        {
-            // 別 Organization の Client を発行元にすると、B2BPasskeyService の Organization
-            // 境界チェックで弾かれる identity を作ってしまう。
-            logger.LogWarning(
-                "B2BUserIdentity creation skipped - client {ClientId} does not belong to organization {OrgCode}",
-                client.ClientId, organizationCode);
-        }
-        else
-        {
-            context.B2BUserIdentities.Add(new B2BUserIdentity
-            {
-                B2BSubject = b2bUserSubject,
-                IssuerKey = B2BIssuerKey.ForClient(client.ClientId),
-                ExternalId = externalIdHash,
-                ClientId = client.ClientId
-            });
-        }
+            B2BSubject = b2bUserSubject,
+            IssuerKey = B2BIssuerKey.ForClient(client.ClientId),
+            ExternalId = ExternalIdHasher.Hash(b2bUserExternalId),
+            ClientId = client.ClientId
+        });
 
         logger.LogInformation("Created B2BUser {Subject} for organization {OrgCode}",
             b2bUserSubject, organizationCode);
